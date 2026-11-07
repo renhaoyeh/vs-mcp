@@ -1,0 +1,5 @@
+# Source is LF. Solution and fixture files keep the CRLF that Visual Studio writes.
+* text=auto eol=lf
+*.sln text eol=crlf
+tests/VsMcp.TestProjects/** text eol=crlf
+*.vsix binary

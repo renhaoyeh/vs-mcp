@@ -1,0 +1,40 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppLib", "CppLib\CppLib.vcxproj", "{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppApp", "CppApp\CppApp.vcxproj", "{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A02}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01} = {6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppTests", "CppTests\CppTests.vcxproj", "{0F807DD9-3096-47BE-B4D2-593BDDE4D1F5}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NativeDebug", "NativeDebug\NativeDebug.vcxproj", "{E00E7970-D625-4917-9951-A3E0CC6A6C1F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug Desktop|x64 = Debug Desktop|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E00E7970-D625-4917-9951-A3E0CC6A6C1F}.Debug Desktop|x64.ActiveCfg = Debug|x64
+		{E00E7970-D625-4917-9951-A3E0CC6A6C1F}.Debug Desktop|x64.Build.0 = Debug|x64
+		{E00E7970-D625-4917-9951-A3E0CC6A6C1F}.Release|x64.ActiveCfg = Release|x64
+		{E00E7970-D625-4917-9951-A3E0CC6A6C1F}.Release|x64.Build.0 = Release|x64
+		{0F807DD9-3096-47BE-B4D2-593BDDE4D1F5}.Debug Desktop|x64.ActiveCfg = Debug|x64
+		{0F807DD9-3096-47BE-B4D2-593BDDE4D1F5}.Debug Desktop|x64.Build.0 = Debug|x64
+		{0F807DD9-3096-47BE-B4D2-593BDDE4D1F5}.Release|x64.ActiveCfg = Release|x64
+		{0F807DD9-3096-47BE-B4D2-593BDDE4D1F5}.Release|x64.Build.0 = Release|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}.Debug Desktop|x64.ActiveCfg = Debug|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}.Debug Desktop|x64.Build.0 = Debug|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}.Release|x64.ActiveCfg = Release|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A01}.Release|x64.Build.0 = Release|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A02}.Debug Desktop|x64.ActiveCfg = Debug|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A02}.Debug Desktop|x64.Build.0 = Debug|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A02}.Release|x64.ActiveCfg = Release|x64
+		{6F1B4C52-3A0E-4D7B-9C21-5E8A7D3B1A02}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

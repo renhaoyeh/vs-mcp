@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+
+  <!-- Slows the build by 8 seconds so build_projects can be observed while running. -->
+  <Target Name="SlowDown" BeforeTargets="CoreCompile">
+    <Exec Command="powershell -NoProfile -Command Start-Sleep -Seconds 8" />
+  </Target>
+</Project>

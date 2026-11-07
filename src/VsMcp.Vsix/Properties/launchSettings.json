@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Experimental instance": {
+      "commandName": "Executable",
+      "executablePath": "$(DevEnvDir)devenv.exe",
+      "commandLineArgs": "/rootsuffix Exp",
+      "environmentVariables": {
+        "VS_MCP_PORT": "18773"
+      }
+    }
+  }
+}

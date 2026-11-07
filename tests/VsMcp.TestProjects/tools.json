@@ -1,0 +1,3357 @@
+{
+  "tools": [
+    {
+      "name": "breakpoint_enable",
+      "title": "breakpoint_enable",
+      "description": "Enable or disable all top-level breakpoints at an exact absolute file path and line. Fails if none match.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "enabled"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "build_configuration_set",
+      "title": "build_configuration_set",
+      "description": "Explicitly activate an exact solution configuration and platform pair while idle. No fallback; builds themselves never switch configuration.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "configuration",
+          "platform"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "build_projects",
+      "title": "Build projects",
+      "description": "Build, clean or rebuild the given projects in the active solution configuration and platform, as Visual Studio does when you build, and wait for the result. Read the active configuration with get_solution_configurations; to build another one, set it active in Visual Studio first. This tool never changes it. 'operation' is 'build' (default), 'clean' (delete the projects' build output) or 'rebuild' (clean, then build). Clean and rebuild delete build output on disk and nothing else; they never run git. Give either 'projects' (built in the listed order) or 'folder' (every project below that solution folder, ordered so a project comes after the projects it requires within the folder). With 'folder', projects the configuration does not build (shouldBuild false) are listed in 'skipped'. By default the build stops at the first failed project ('stopOnFirstError'); the projects not reached report 'notBuilt' and 'stoppedEarly' is true. The projects the requested ones require, directly or indirectly, are built first, like building a project or a solution folder in Visual Studio; they are listed in build order, and a dependency the configuration does not build is listed in 'skipped'. A clean never adds dependencies. Each project is built with the project configuration that the solution configuration maps it to; the active configuration is never changed. A requested project that the solution configuration does not build (shouldBuild false) is rejected instead of built. 'status' is 'succeeded', 'failed' or 'cancelled' once Visual Studio reports the build finished, and 'running' if it was still going when 'timeoutSeconds' elapsed (the build continues). Per-project 'result' tells which projects built, failed or were not reached. This writes build output to disk. Fails with BUILD_IN_PROGRESS while another build is running.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projects": {
+            "description": "Projects to build, by name or unique name, in build order. Their dependencies are built first. Use this or 'folder', not both.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": null,
+            "minItems": 1
+          },
+          "folder": {
+            "description": "A '/'-separated solution folder path (see get_projects). Builds every project below it, ordered by their dependencies on each other. Use this or 'projects', not both.",
+            "type": "string",
+            "default": null
+          },
+          "stopOnFirstError": {
+            "description": "Cancel the rest of the build as soon as one project fails.",
+            "type": "boolean",
+            "default": true
+          },
+          "operation": {
+            "description": "build (default), clean or rebuild.",
+            "type": "string",
+            "enum": [
+              "build",
+              "clean",
+              "rebuild"
+            ],
+            "default": "build"
+          },
+          "timeoutSeconds": {
+            "description": "How long to wait for the build to finish, in seconds. The build continues if it is exceeded.",
+            "type": "integer",
+            "default": 600,
+            "minimum": 1,
+            "maximum": 3600
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "solutionConfiguration": {
+            "type": "string"
+          },
+          "solutionPlatform": {
+            "type": "string"
+          },
+          "operation": {
+            "description": "What was done to the projects: build, clean or rebuild.",
+            "type": "string",
+            "enum": [
+              "build",
+              "clean",
+              "rebuild"
+            ]
+          },
+          "status": {
+            "description": "'running' while Visual Studio is still building; otherwise how the build ended.",
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "running"
+            ]
+          },
+          "finished": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "projects": {
+            "description": "One entry per requested project, in build order.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                },
+                "projectConfiguration": {
+                  "type": "string"
+                },
+                "projectPlatform": {
+                  "type": "string"
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "succeeded",
+                    "failed",
+                    "cancelled",
+                    "notBuilt",
+                    "running"
+                  ]
+                }
+              },
+              "required": [
+                "project",
+                "uniqueName",
+                "projectConfiguration",
+                "projectPlatform",
+                "result"
+              ]
+            }
+          },
+          "errorCount": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "file": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "line": {
+                  "type": "integer"
+                },
+                "column": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "stoppedEarly": {
+            "description": "True when the build was cancelled because a project failed (stopOnFirstError).",
+            "type": "boolean"
+          },
+          "skipped": {
+            "description": "Projects of a folder build that the configuration does not build.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "output": {
+            "description": "The tail of the Build output pane; null while running or when it cannot be read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputTruncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance",
+          "solutionConfiguration",
+          "solutionPlatform",
+          "operation",
+          "status",
+          "finished",
+          "running",
+          "projects"
+        ]
+      }
+    },
+    {
+      "name": "cancel_build",
+      "title": "Cancel the running build",
+      "description": "Ask Visual Studio to cancel the build that is running. Does nothing, and says so, if no build is running. Use get_build_status afterwards to see the final status.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "cancelRequested": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance",
+          "cancelRequested",
+          "running"
+        ]
+      }
+    },
+    {
+      "name": "debugger_add_breakpoint",
+      "title": "debugger_add_breakpoint",
+      "description": "Add a file/line breakpoint, optionally with a condition. Returns the debugger's resulting breakpoint state; binding depends on loaded symbols.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "condition": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_break",
+      "title": "debugger_break",
+      "description": "Request a running debug session to pause. Acceptance does not prove it has paused.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_continue",
+      "title": "debugger_continue",
+      "description": "Continue a paused debug session. Rejected in design mode, so this never starts a new session.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_evaluate",
+      "title": "debugger_evaluate",
+      "description": "Evaluate an expression in the paused debugger context. Evaluation can invoke code and mutate the debuggee. Timeout is passed to the debugger in milliseconds.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          },
+          "timeoutMilliseconds": {
+            "type": "integer",
+            "default": 1000
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_get_callstack",
+      "title": "debugger_get_callstack",
+      "description": "Read bounded stack frames from the current thread of a paused debug session.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxFrames": {
+            "type": "integer",
+            "default": 100
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_get_locals",
+      "title": "debugger_get_locals",
+      "description": "Read bounded locals from the current paused stack frame. Values may be debugger-formatted.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxResults": {
+            "type": "integer",
+            "default": 100
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_list_breakpoints",
+      "title": "debugger_list_breakpoints",
+      "description": "List top-level debugger breakpoints with location, condition and enabled state.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_remove_breakpoint",
+      "title": "debugger_remove_breakpoint",
+      "description": "Delete all top-level breakpoints at an exact absolute file path and line. Fails if none match.",
+      "readOnly": null,
+      "destructive": true,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_step_into",
+      "title": "debugger_step_into",
+      "description": "Step into in a paused debug session.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_step_out",
+      "title": "debugger_step_out",
+      "description": "Step out in a paused debug session.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_step_over",
+      "title": "debugger_step_over",
+      "description": "Step over in a paused debug session.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "document_active",
+      "title": "Read active document",
+      "description": "Read the active document state. data is null when no document is active.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "saved",
+              "readOnly"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_close",
+      "title": "Close an editor buffer",
+      "description": "Close an open document. Reject unsaved changes unless save or discardChanges is explicitly true.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "default": null
+          },
+          "save": {
+            "type": "boolean",
+            "default": false
+          },
+          "discardChanges": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "saved",
+              "readOnly"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_list",
+      "title": "List editor buffers",
+      "description": "List open Visual Studio documents, including unsaved and read-only state. Works with C++ and C# editors.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "saved": {
+                      "type": "boolean"
+                    },
+                    "readOnly": {
+                      "type": "boolean"
+                    },
+                    "sha256": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "saved",
+                    "readOnly"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "documents"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_open",
+      "title": "Open an editor buffer",
+      "description": "Open an existing absolute file path in this IDE without creating files or adding project items.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "saved",
+              "readOnly"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_read",
+      "title": "Read an editor buffer",
+      "description": "Read an open text buffer including unsaved changes. Returns bounded text and a SHA-256 of the complete buffer for subsequent edits. Positions are one-based; omit path for the active document.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "default": null
+          },
+          "startLine": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "maxLines": {
+            "type": "integer",
+            "default": 500,
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "maxCharacters": {
+            "type": "integer",
+            "default": 20000,
+            "minimum": 1,
+            "maximum": 200000
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "startLine": {
+                "type": "integer"
+              },
+              "totalLines": {
+                "type": "integer"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "path",
+              "text",
+              "sha256",
+              "startLine",
+              "totalLines",
+              "truncated"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_save",
+      "title": "Save an editor buffer",
+      "description": "Save an open document to its existing path and verify that saving completed.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "default": null
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "sha256": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "saved",
+              "readOnly"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "document_write",
+      "title": "Write an editor buffer",
+      "description": "Replace an entire open text buffer in one undo transaction. Requires complete-buffer expectedSha256 from document_read; stale edits fail without changing text. Leaves edits unsaved unless save is true.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "expectedSha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "default": null
+          },
+          "save": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "text",
+          "expectedSha256"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "document": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "saved": {
+                    "type": "boolean"
+                  },
+                  "readOnly": {
+                    "type": "boolean"
+                  },
+                  "sha256": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "saved",
+                  "readOnly"
+                ]
+              },
+              "replacements": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document",
+              "replacements"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "editor_replace",
+      "title": "Replace exact buffer text",
+      "description": "Replace an exact case-sensitive fragment in an open C++/C# buffer in one undo transaction. Requires expectedSha256 from document_read. Missing, ambiguous or stale matches fail without editing. Set replaceAll explicitly to allow multiple matches. Does not save.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "oldText": {
+            "type": "string"
+          },
+          "newText": {
+            "type": "string"
+          },
+          "expectedSha256": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "default": null
+          },
+          "replaceAll": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "oldText",
+          "newText",
+          "expectedSha256"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "document": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "saved": {
+                    "type": "boolean"
+                  },
+                  "readOnly": {
+                    "type": "boolean"
+                  },
+                  "sha256": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "saved",
+                  "readOnly"
+                ]
+              },
+              "replacements": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document",
+              "replacements"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "errors_list",
+      "title": "errors_list",
+      "description": "Read the Visual Studio Error List with optional severity, project and description filters. Severity is error, warning or message. Results are bounded.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "default": null
+          },
+          "project": {
+            "type": "string",
+            "default": null
+          },
+          "text": {
+            "type": "string",
+            "default": null
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 200
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "execute_code",
+      "title": "Execute C# in Visual Studio",
+      "description": "Execute a synchronous C# method body on the VS UI thread. Available parameters: DTE (DTE2), Solution (IVsSolution), Services (IServiceProvider). Return a JSON-serializable value with return; use fully qualified names for other types. Enabled by default. Arbitrary code runs with the user's privileges, can modify VS and files, and bypasses other tools' restrictions. No sandbox, timeout or rollback. Return small data objects, not COM objects. Do not retry after an interrupted response without checking effects.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": true,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "description": "C# method body, for example: return new { version = DTE.Version };",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "find_references",
+      "title": "Find symbol references",
+      "description": "Return bounded source reference file/line/column locations. C# uses the live Roslyn solution; C++ requires an installed native Peek References provider. If the native provider lacks References, returns NOT_SUPPORTED rather than textual matches or command acceptance. Does not open a results window.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "project": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "column"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "column": {
+                      "type": "integer"
+                    },
+                    "endLine": {
+                      "type": "integer"
+                    },
+                    "endColumn": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "line",
+                    "column",
+                    "endLine",
+                    "endColumn"
+                  ]
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "hasMetadataDefinition": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "symbol",
+              "kind",
+              "language",
+              "locations",
+              "truncated",
+              "hasMetadataDefinition"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "get_build_status",
+      "title": "Get build status",
+      "description": "Report the most recent build started by build_projects: 'status' (running, succeeded, failed or cancelled), per-project results, errors and the tail of the Build output. Use it to collect the result of a build that was still 'running' when build_projects returned. The output and errors are read from Visual Studio's Build output and Error List when you call, so they describe the latest build in the IDE. Read-only. Fails with NO_BUILD if no build was started yet.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "solutionConfiguration": {
+            "type": "string"
+          },
+          "solutionPlatform": {
+            "type": "string"
+          },
+          "operation": {
+            "description": "What was done to the projects: build, clean or rebuild.",
+            "type": "string",
+            "enum": [
+              "build",
+              "clean",
+              "rebuild"
+            ]
+          },
+          "status": {
+            "description": "'running' while Visual Studio is still building; otherwise how the build ended.",
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "running"
+            ]
+          },
+          "finished": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "projects": {
+            "description": "One entry per requested project, in build order.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                },
+                "projectConfiguration": {
+                  "type": "string"
+                },
+                "projectPlatform": {
+                  "type": "string"
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "succeeded",
+                    "failed",
+                    "cancelled",
+                    "notBuilt",
+                    "running"
+                  ]
+                }
+              },
+              "required": [
+                "project",
+                "uniqueName",
+                "projectConfiguration",
+                "projectPlatform",
+                "result"
+              ]
+            }
+          },
+          "errorCount": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "file": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "line": {
+                  "type": "integer"
+                },
+                "column": {
+                  "type": "integer"
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "stoppedEarly": {
+            "description": "True when the build was cancelled because a project failed (stopOnFirstError).",
+            "type": "boolean"
+          },
+          "skipped": {
+            "description": "Projects of a folder build that the configuration does not build.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "output": {
+            "description": "The tail of the Build output pane; null while running or when it cannot be read.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputTruncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance",
+          "solutionConfiguration",
+          "solutionPlatform",
+          "operation",
+          "status",
+          "finished",
+          "running",
+          "projects"
+        ]
+      }
+    },
+    {
+      "name": "get_debug_status",
+      "title": "Get debugger status",
+      "description": "Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "waitSeconds": {
+            "description": "Maximum seconds to wait for an unresolved start/stop request to resolve. Default 10; 0 returns immediately.",
+            "type": "integer",
+            "default": 10,
+            "maximum": 120
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "get_project_dependencies",
+      "title": "Get project dependencies",
+      "description": "List, for each project (or one project), the projects it directly requires and every project that must be built before it (direct and indirect). Building a project builds these too. Dependencies come from the solution's build dependencies and do not depend on the configuration; whether a dependency is built in a given configuration is reported by get_solutionConfigurations (shouldBuild). Read-only. The optional project filter matches exactly (case-insensitive) and fails instead of falling back.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "description": "Only this project, by name or unique name (relative project path).",
+            "type": "string",
+            "default": null
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                },
+                "directDependencies": {
+                  "description": "The projects this project directly requires.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "uniqueName": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "uniqueName"
+                    ]
+                  }
+                },
+                "allDependencies": {
+                  "description": "Every project that must be built before this one, direct and indirect.",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/projects/items/properties/directDependencies/items"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "uniqueName",
+                "directDependencies",
+                "allDependencies"
+              ]
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "projects"
+        ]
+      }
+    },
+    {
+      "name": "get_projects",
+      "title": "Get projects",
+      "description": "List the solution's projects together with its solution-folder hierarchy, one level at a time. Without 'folder' it returns the top level of the solution; with 'folder' (a path of solution folder names separated by '/') it returns what is directly inside that folder. Each folder reports its direct folder and project counts and the total number of projects below it, so you can decide where to go deeper. Set 'recursive' to expand the whole subtree at once (large solutions can be big). Read-only. A folder path that does not exist fails with the available folders instead of falling back.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "description": "Solution folder path to look inside, for example 'FolderA/SubFolder'. Omit for the top level.",
+            "type": "string",
+            "default": null
+          },
+          "recursive": {
+            "description": "Expand every folder below the requested level.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "folder": {
+            "description": "The folder that was listed, or null for the top level.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "description": "The '/'-separated path to pass as 'folder'.",
+                  "type": "string"
+                },
+                "folderCount": {
+                  "type": "integer"
+                },
+                "projectCount": {
+                  "type": "integer"
+                },
+                "totalProjectCount": {
+                  "description": "Projects in this folder and every folder below it.",
+                  "type": "integer"
+                },
+                "folders": {
+                  "description": "Present only when 'recursive' was set.",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/properties/folders/items"
+                  }
+                },
+                "projects": {
+                  "description": "Present only when 'recursive' was set.",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "uniqueName": {
+                        "type": "string"
+                      },
+                      "fullName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "uniqueName",
+                      "kind"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "path",
+                "folderCount",
+                "projectCount",
+                "totalProjectCount"
+              ]
+            }
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/properties/folders/items/properties/projects/items"
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "folder",
+          "folders",
+          "projects"
+        ]
+      }
+    },
+    {
+      "name": "get_solution_configurations",
+      "title": "Get solution configurations",
+      "description": "List the open solution's solution configuration and platform pairs, and for each pair the project configuration and platform every project actually maps to. Use get_projects for the project list and folder hierarchy. Read-only: never changes the active configuration. Optional filters match exactly (case-insensitive) and fail instead of falling back to another value.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "solutionConfiguration": {
+            "description": "Only this solution configuration name.",
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "description": "Only this solution platform, for example 'x64'.",
+            "type": "string",
+            "default": null
+          },
+          "project": {
+            "description": "Only this project, by name or unique name (relative project path).",
+            "type": "string",
+            "default": null
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "activeConfiguration": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "solutionConfiguration": {
+                "type": "string"
+              },
+              "solutionPlatform": {
+                "type": "string"
+              }
+            }
+          },
+          "solutionConfigurations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "solutionConfiguration": {
+                  "type": "string"
+                },
+                "solutionPlatform": {
+                  "type": "string"
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "projects": {
+                  "description": "Each project and the project configuration and platform it maps to in this pair.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "project": {
+                        "type": "string"
+                      },
+                      "uniqueName": {
+                        "type": "string"
+                      },
+                      "projectConfiguration": {
+                        "type": "string"
+                      },
+                      "projectPlatform": {
+                        "type": "string"
+                      },
+                      "shouldBuild": {
+                        "description": "False when this solution configuration does not build the project.",
+                        "type": "boolean"
+                      },
+                      "shouldDeploy": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "project",
+                      "uniqueName",
+                      "projectConfiguration",
+                      "projectPlatform",
+                      "shouldBuild",
+                      "shouldDeploy"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "solutionConfiguration",
+                "solutionPlatform",
+                "isActive",
+                "projects"
+              ]
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "solutionConfigurations"
+        ]
+      }
+    },
+    {
+      "name": "get_vs_info",
+      "title": "Get Visual Studio instance info",
+      "description": "Identify the Visual Studio instance serving this connection: process ID, product version and the open solution path. Call this first and confirm it is the intended instance before relying on any other result.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "description": "The Visual Studio instance that served the call.",
+        "type": "object",
+        "properties": {
+          "pid": {
+            "type": "integer"
+          },
+          "product": {
+            "type": "string"
+          },
+          "dteVersion": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "executablePath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "solutionOpen": {
+            "type": "boolean"
+          },
+          "solutionPath": {
+            "description": "Null for an unsaved solution.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "pid",
+          "product",
+          "dteVersion",
+          "solutionOpen"
+        ]
+      }
+    },
+    {
+      "name": "goto_definition",
+      "title": "Find source definitions",
+      "description": "Return source definition file/line/column locations for the symbol at a one-based document position. C# uses the live Roslyn workspace; C++ uses the installed native Peek provider and may open the file without showing Peek UI. Unsupported provider capabilities fail explicitly. Metadata-only symbols can have no source locations.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "project": {
+            "description": "Exact project name or absolute project file path to disambiguate linked files.",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "column"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string"
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "column": {
+                      "type": "integer"
+                    },
+                    "endLine": {
+                      "type": "integer"
+                    },
+                    "endColumn": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "line",
+                    "column",
+                    "endLine",
+                    "endColumn"
+                  ]
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "hasMetadataDefinition": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "symbol",
+              "kind",
+              "language",
+              "locations",
+              "truncated",
+              "hasMetadataDefinition"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "output_list_panes",
+      "title": "output_list_panes",
+      "description": "List the Output window panes by name and GUID.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "output_read",
+      "title": "output_read",
+      "description": "Read the bounded tail of an Output pane by exact name or GUID.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pane": {
+            "type": "string"
+          },
+          "maxCharacters": {
+            "type": "integer",
+            "default": 20000
+          }
+        },
+        "required": [
+          "pane"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "solution_close",
+      "title": "solution_close",
+      "description": "Close the current solution only when idle and all documents and the solution are saved.",
+      "readOnly": null,
+      "destructive": true,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "solution_open",
+      "title": "solution_open",
+      "description": "Open an existing absolute solution path. Rejects builds, debugging and unsaved documents or solutions; never discards changes.",
+      "readOnly": null,
+      "destructive": true,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "start_debugging",
+      "title": "Start debugging",
+      "description": "Start debugging like pressing F5: post F5 to this VS instance and return immediately. It uses the solution's current configuration and startup projects, which this tool never changes (see get_debug_status). VS may build the startup projects and their dependencies according to its own F5 settings; this is separate from build_projects. Rejected while building, already debugging or another launch is unresolved. An accepted request is not launch success: poll get_debug_status for the actual mode and process IDs. A cancelled or failed launch may remain requested; never blindly retry it.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "startup_project_get",
+      "title": "startup_project_get",
+      "description": "Read startup project unique names for the current solution.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "startup_project_set",
+      "title": "startup_project_set",
+      "description": "Explicitly set a single startup project by exact name or unique name. Requires idle IDE; ambiguous names fail.",
+      "readOnly": null,
+      "destructive": null,
+      "idempotent": null,
+      "openWorld": null,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "stop_debugging",
+      "title": "Stop debugging",
+      "description": "Stop the current debug session, like Stop Debugging in Visual Studio (may terminate launched apps or detach attached processes). Runs asynchronously without compiling code; poll get_debug_status for design mode, empty debugged processes and the stop_request phase. A queued stop never applies to a later session. Already idle is a no-op. Does not kill processes directly.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": true,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "test_cancel",
+      "title": "Cancel an owned test run",
+      "description": "Cancel a test_run operation by runId. Only its owned runner/test-host process job is terminated; unrelated Test Explorer runs are untouched. Returns current state; poll test_status until cancelled or another final status.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "runId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "passed",
+                  "failed",
+                  "cancelled",
+                  "error",
+                  "noTests"
+                ]
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "startedAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "finishedAtUtc": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "exitCode": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "resultsPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "report": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "executed": {
+                    "type": "integer"
+                  },
+                  "passed": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  },
+                  "skipped": {
+                    "type": "integer"
+                  },
+                  "results": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "stackTrace": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "outcome"
+                      ]
+                    }
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "total",
+                  "executed",
+                  "passed",
+                  "failed",
+                  "skipped",
+                  "results",
+                  "truncated"
+                ]
+              },
+              "output": {
+                "type": "string"
+              },
+              "cancelRequested": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "runId",
+              "status",
+              "sources",
+              "startedAtUtc",
+              "output",
+              "cancelRequested"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "test_run",
+      "title": "Run built tests",
+      "description": "Run explicitly supplied, already-built C# or native C++ test DLL/EXE containers with the connected Visual Studio installation's VSTest runner. Requires a compatible installed/deployed test adapter. Does not build, restore or change Test Explorer state. Returns a runId and actual TRX results when finished, or running after waitSeconds; collect with test_status. A disconnect does not cancel the run. Modern Microsoft.Testing.Platform-only executables are not supported.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "filter": {
+            "description": "Optional VSTest TestCaseFilter expression.",
+            "type": "string",
+            "default": null
+          },
+          "settingsPath": {
+            "type": "string",
+            "default": null
+          },
+          "adapterPath": {
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "description": "Test-host architecture: x64, x86 or ARM64. Must match native test binaries.",
+            "type": "string",
+            "default": "x64"
+          },
+          "waitSeconds": {
+            "type": "integer",
+            "default": 10,
+            "maximum": 120
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "sources"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "runId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "passed",
+                  "failed",
+                  "cancelled",
+                  "error",
+                  "noTests"
+                ]
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "startedAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "finishedAtUtc": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "exitCode": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "resultsPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "report": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "executed": {
+                    "type": "integer"
+                  },
+                  "passed": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  },
+                  "skipped": {
+                    "type": "integer"
+                  },
+                  "results": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "stackTrace": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "outcome"
+                      ]
+                    }
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "total",
+                  "executed",
+                  "passed",
+                  "failed",
+                  "skipped",
+                  "results",
+                  "truncated"
+                ]
+              },
+              "output": {
+                "type": "string"
+              },
+              "cancelRequested": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "runId",
+              "status",
+              "sources",
+              "startedAtUtc",
+              "output",
+              "cancelRequested"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "test_status",
+      "title": "Read test results",
+      "description": "Read or wait for a test_run operation by runId. Omit runId to recover the latest run after a disconnected request. Returns real TRX counts, bounded per-test outcomes, failure messages and stack traces. No matching/executed tests reports noTests rather than passed. The latest ten runs are retained until the IDE exits.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "default": null
+          },
+          "waitSeconds": {
+            "type": "integer",
+            "default": 0,
+            "maximum": 120
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "runId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "passed",
+                  "failed",
+                  "cancelled",
+                  "error",
+                  "noTests"
+                ]
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "startedAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "finishedAtUtc": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "exitCode": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "resultsPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "report": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "executed": {
+                    "type": "integer"
+                  },
+                  "passed": {
+                    "type": "integer"
+                  },
+                  "failed": {
+                    "type": "integer"
+                  },
+                  "skipped": {
+                    "type": "integer"
+                  },
+                  "results": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "outcome": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "errorMessage": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "stackTrace": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "outcome"
+                      ]
+                    }
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "total",
+                  "executed",
+                  "passed",
+                  "failed",
+                  "skipped",
+                  "results",
+                  "truncated"
+                ]
+              },
+              "output": {
+                "type": "string"
+              },
+              "cancelRequested": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "runId",
+              "status",
+              "sources",
+              "startedAtUtc",
+              "output",
+              "cancelRequested"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    }
+  ]
+}

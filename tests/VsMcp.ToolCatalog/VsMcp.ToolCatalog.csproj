@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VsMcp.Vsix/VsMcp.Vsix.csproj" />
+    <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" />
+    <PackageReference Include="ModelContextProtocol.Core" Version="2.3.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <VsRoslynDir Condition="'$(VsRoslynDir)' == ''">$(MSBuildExtensionsPath)\..\Common7\IDE\CommonExtensions\Microsoft\VBCSharp\LanguageServices</VsRoslynDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(VsRoslynDir)\Microsoft.CodeAnalysis.dll</HintPath></Reference>
+    <Reference Include="Microsoft.CodeAnalysis.Workspaces"><HintPath>$(VsRoslynDir)\Microsoft.CodeAnalysis.Workspaces.dll</HintPath></Reference>
+    <Reference Include="Microsoft.VisualStudio.LanguageServices"><HintPath>$(VsRoslynDir)\Microsoft.VisualStudio.LanguageServices.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>
