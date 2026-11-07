@@ -6,7 +6,7 @@ namespace VsMcp.IntegrationTests;
 
 /// <summary>
 /// The tool catalog snapshot must match what the server declares. After an intended schema change,
-/// regenerate tests/VsMcp.TestProjects/tools.json with VS_MCP_UPDATE_TOOL_CATALOG=1 and review the diff.
+/// regenerate src/VsMcp.Bridge/tools.json with VS_MCP_UPDATE_TOOL_CATALOG=1 and review the diff.
 /// </summary>
 [Collection("Fixture")]
 public sealed class ToolReferenceTests(FixtureSession session)
@@ -35,7 +35,7 @@ public sealed class ToolReferenceTests(FixtureSession session)
         }).ToArray();
 
         var actual = new JsonObject { ["tools"] = new JsonArray(tools) }.ToJsonString(Pretty).Replace("\r\n", "\n") + "\n";
-        var path = Path.Combine(ExpHost.ProjectRoot, "tests", "VsMcp.TestProjects", "tools.json");
+        var path = Path.Combine(ExpHost.ProjectRoot, "src", "VsMcp.Bridge", "tools.json");
 
         if (Environment.GetEnvironmentVariable("VS_MCP_UPDATE_TOOL_CATALOG") == "1")
         {
@@ -44,8 +44,8 @@ public sealed class ToolReferenceTests(FixtureSession session)
             return;
         }
 
-        Assert.True(File.Exists(path), "tests/VsMcp.TestProjects/tools.json is missing. Generate it with VS_MCP_UPDATE_TOOL_CATALOG=1.");
+        Assert.True(File.Exists(path), "src/VsMcp.Bridge/tools.json is missing. Generate it with VS_MCP_UPDATE_TOOL_CATALOG=1.");
         Assert.True(File.ReadAllText(path).Replace("\r\n", "\n") == actual,
-            "tests/VsMcp.TestProjects/tools.json is out of date. Regenerate it with VS_MCP_UPDATE_TOOL_CATALOG=1 and review the diff.");
+            "src/VsMcp.Bridge/tools.json is out of date. Regenerate it with VS_MCP_UPDATE_TOOL_CATALOG=1 and review the diff.");
     }
 }

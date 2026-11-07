@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\VsMcp.Vsix\Contracts\*.cs" Link="Contracts\%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\VsMcp.Vsix\Infrastructure\InstanceRegistry.cs" Link="Infrastructure\InstanceRegistry.cs" />
   </ItemGroup>
 
   <ItemGroup>

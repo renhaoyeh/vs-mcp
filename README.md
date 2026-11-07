@@ -2,14 +2,15 @@
 
 English | [繁體中文](README.zh-TW.md)
 
-Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. The default endpoint is `http://127.0.0.1:18770/mcp`.
+Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. A bundled .NET stdio bridge provides a fixed client entry point and explicit selection between running VS instances.
 
 ## Tools
 
-There are **44 tools**. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
+There are **44 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
+| Bridge instance management | `list_vs_instances`, `connect_vs_instance` | List running VS instances with PID, instanceId, endpoint and live solution identity; explicitly bind this bridge to the chosen instance. These tools remain available when no VS is running. |
 | Instance and solution queries | `get_vs_info`, `get_projects`, `get_solution_configurations`, `get_project_dependencies` | Identify the serving VS process, version and solution path; query projects, solution folders, configuration mappings and build dependencies. |
 | Open and close solutions | `solution_open`, `solution_close` | Open or close a solution; reject operations when documents or the solution have unsaved changes. |
 | Startup project and configuration | `startup_project_get`, `startup_project_set`, `build_configuration_set` | Read or explicitly set startup projects, or select a configuration and platform. Settings are never inferred. |
@@ -25,7 +26,7 @@ There are **44 tools**. The table lists every tool and the data it returns. Tool
 | Tests | `test_run`, `test_status`, `test_cancel` | Run specified, already-built test DLLs/EXEs; return run ID, status, TRX counts, individual results, failure messages and stacks, with filtering, waiting and cancellation. |
 | Advanced execution | `execute_code` | Execute a C# method body on the VS UI thread with access to DTE and VS services; return serializable data. This tool can execute arbitrary code. |
 
-The official MCP SDK generates parameter definitions, defaults and result schemas, available through MCP `tools/list`. A test snapshot is stored in [tests/VsMcp.TestProjects/tools.json](tests/VsMcp.TestProjects/tools.json).
+The official MCP SDK generates parameter definitions, defaults and result schemas, available through MCP `tools/list`. The generated IDE catalog in [src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) lets the bridge expose stable tool definitions before VS starts. Connecting verifies that the live IDE tool catalog matches.
 
 ## C++ and C# support
 
@@ -57,7 +58,7 @@ Test tools run already-built binaries. They do not build, restore or synchronize
 
 | Task | Suggested sequence | Behavior and precautions |
 | --- | --- | --- |
-| Confirm the target | `get_vs_info` → inspect PID, version and solution path. | Each VS instance needs its own explicit port; collisions never redirect to another instance. |
+| Confirm the target | `list_vs_instances` → `connect_vs_instance` with the chosen PID and instanceId → `get_vs_info` → inspect version and solution path. | Each bridge binds to one instance. Changing the target requires an explicit connection request after active calls finish. Direct HTTP clients should check `get_vs_info` first. |
 | Edit code | `document_open` → `document_read` → pass the returned `sha256` as `expectedSha256` to `editor_replace` or `document_write` → save if needed. | Read again when the hash is stale. Each edit is one undo transaction. Reads have line/character limits; positions are 1-based. |
 | Build | Query projects, dependencies and active configuration → `build_projects` → `get_build_status` if needed. | Build/rebuild includes required dependencies; clean does not add dependencies. Building does not switch configuration. |
 | Run tests | Finish building → `test_run` with absolute DLL/EXE paths and optional filter, settings, adapter path and architecture → `test_status`. | Disconnecting does not cancel tests. If a run ID is lost, omit `runId` from `test_status` to query the latest run. Cancellation requires a run ID. |
@@ -75,17 +76,21 @@ Build requirements: Windows, Visual Studio 2026 with C#/.NET, Desktop C++ and ex
 
 Open `VsMcp.slnx` in Visual Studio, select Release and build the `VsMcp.Vsix` project. The package is written to `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`.
 
-Install the VSIX, restart VS and configure your MCP client:
+Install the VSIX and start VS once. The extension installs the bundled bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. The bridge requires the .NET 10 runtime. Configure your MCP client with the full executable path for your account:
 
 ```json
 {
   "mcpServers": {
-    "visual-studio": { "url": "http://127.0.0.1:18770/mcp" }
+    "visual-studio": {
+      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
+    }
   }
 }
 ```
 
-Set `VS_MCP_PORT` before starting VS to choose a different port. The server listens only on loopback and validates Host/Origin; it currently has no authentication token.
+Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying. Close bridge clients before installing an updated bridge, then restart VS.
+
+Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_PORT`, VS first tries port 18770 and chooses a free port on collision; the bridge discovers the assigned endpoint. Setting `VS_MCP_PORT` before starting VS fixes the port and disables fallback. The server listens only on loopback and validates Host/Origin; it currently has no authentication token. Bridge requests additionally identify the selected registration so a reused port cannot redirect a call to another instance.
 
 `execute_code` runs arbitrary code with your permissions on the UI thread, without a sandbox, execution timeout or rollback. If a modifying operation is interrupted by a disconnect, inspect its effects before deciding whether to retry.
 
@@ -99,6 +104,6 @@ Set `VS_MCP_PORT` before starting VS to choose a different port. The server list
 | `Services/` | Services for solutions, builds, documents, debugging, language navigation and tests. |
 | `Infrastructure/` | VSTest processes, argument handling, output capture and Windows process jobs. |
 
-Version 0.4.0 was installed and verified in the VS 2026 Community experimental instance: **44 integration tests and 9 unit tests passed**, along with the HTTP harness and live tool schema comparison. C++ and C# builds, documents, tests and debugging were exercised; C++ references remain subject to the provider limitations above.
+Version 0.4.0 was installed and verified in the VS 2026 Community experimental instance: **45 integration tests, 11 bridge tests and 9 unit tests passed**, along with the HTTP harness and live tool schema comparison. C++ and C# builds, documents, tests and debugging were exercised, as was stdio control of two VS instances with automatic ports; C++ references remain subject to the provider limitations above.
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for architecture details, dependency versions, test commands and experimental-instance workflows.

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/VsMcp.Bridge/VsMcp.Bridge.csproj" />
+    <Compile Include="../../src/VsMcp.Vsix/Mcp/*.cs" Link="Mcp/%(Filename)%(Extension)" />
+    <Compile Include="../../src/VsMcp.Vsix/Infrastructure/BridgeDeployment.cs" Link="Infrastructure/BridgeDeployment.cs" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+</Project>

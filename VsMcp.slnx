@@ -1,10 +1,12 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/VsMcp.Bridge/VsMcp.Bridge.csproj" />
     <Project Path="src/VsMcp.Vsix/VsMcp.Vsix.csproj">
       <Deploy />
     </Project>
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/VsMcp.BridgeTests/VsMcp.BridgeTests.csproj" />
     <Project Path="tests/VsMcp.UnitTests/VsMcp.UnitTests.csproj" />
     <Project Path="tests/VsMcp.Harness/VsMcp.Harness.csproj" />
     <Project Path="tests/VsMcp.ToolCatalog/VsMcp.ToolCatalog.csproj" />

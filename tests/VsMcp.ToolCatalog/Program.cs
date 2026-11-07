@@ -33,7 +33,7 @@ internal static class Program
             return new { name = p.Name, title = p.Title, description = p.Description, readOnly = p.Annotations?.ReadOnlyHint, destructive = p.Annotations?.DestructiveHint, idempotent = p.Annotations?.IdempotentHint, openWorld = p.Annotations?.OpenWorldHint, inputSchema = p.InputSchema, outputSchema = p.OutputSchema };
         }).ToArray() };
         var json = JsonSerializer.Serialize(catalog, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }).Replace("\r\n", "\n") + "\n";
-        var destination = args.Length > 0 ? args[0] : "tests/VsMcp.TestProjects/tools.json";
+        var destination = args.Length > 0 ? args[0] : "src/VsMcp.Bridge/tools.json";
         if (args.Length > 1 && args[1] == "--check")
         {
             if (File.ReadAllText(destination).Replace("\r\n", "\n") != json) throw new Exception("Tool catalog is out of date.");

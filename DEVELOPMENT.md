@@ -36,12 +36,17 @@ MSBuild src/VsMcp.Vsix/VsMcp.Vsix.csproj -restore -p:Configuration=Release
 
 The VSIX is written to `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`. Packaging requires Visual Studio MSBuild; `dotnet build` cannot create the VSIX container. Command-line builds do not install. F5 inside Visual Studio deploys Debug to the experimental hive. The native test fixtures target v145/x64.
 
-The `Release VSIX` GitHub Actions workflow builds the Release package, runs unit tests and the protocol harness, and uploads a `VsMcp-vsix` artifact. Run it manually from Actions, or push a tag such as `v0.4.0` to publish the VSIX on GitHub Releases. The tag must match both the project version and VSIX manifest version; update those files before tagging a new version. Interactive experimental-instance integration tests remain a local validation step.
+`src/VsMcp.Bridge` is a net10.0 stdio server using ModelContextProtocol.Core. The VSIX builds it as an executable dependency without referencing its net10 assembly, and packages its files under `Bridge/`. On startup the extension deploys them to `%LOCALAPPDATA%\VsMcp\Bridge`; a shared process lease prevents updates while a deployed bridge is running. The SDK-generated `src/VsMcp.Bridge/tools.json` catalog is embedded for offline tool discovery. New bridge control tools are attributed methods; IDE tools preserve their original schemas and forward SDK request/result objects.
+
+Each VS publishes an atomic per-process registration under `%LOCALAPPDATA%\VsMcp\instances`, containing PID, process start time, endpoint port and a unique instanceId. Discovery checks process lifetime and queries `get_vs_info` on the UI thread through MCP. A bridge binds only through `connect_vs_instance(pid, instanceId)` after verifying live identity and catalog compatibility. It prevents rebinding while calls are active and attaches the instanceId to HTTP requests; the IDE rejects mismatches before dispatch. Each subsequent tool call creates a fresh SDK HTTP connection to the pinned instance. Calls are never retried automatically, and transport failures after dispatch report an unknown outcome. A restarted process requires explicit rebinding. Default-port collisions choose a free port; an explicit `VS_MCP_PORT` remains strict.
+
+The `Release VSIX` GitHub Actions workflow builds the Release package, checks the embedded IDE tool catalog, runs unit and bridge tests and the protocol harness, and uploads a `VsMcp-vsix` artifact. Run it manually from Actions, or push a tag such as `v0.4.0` to publish the VSIX on GitHub Releases. The tag must match both the project version and VSIX manifest version; update those files before tagging a new version. Interactive experimental-instance integration tests remain a local validation step.
 
 ## Validation
 
 ```powershell
 dotnet test tests/VsMcp.UnitTests
+dotnet test tests/VsMcp.BridgeTests
 dotnet build tests/VsMcp.Harness
 & tests/VsMcp.Harness/bin/Debug/net472/VsMcp.Harness.exe
 ```
@@ -51,11 +56,11 @@ Unit tests cover TRX parsing and failure details, bounded result selection, miss
 Build `tests/VsMcp.ToolCatalog/VsMcp.ToolCatalog.csproj` using VS MSBuild, then:
 
 ```powershell
-& tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe tests/VsMcp.TestProjects/tools.json
-& tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe tests/VsMcp.TestProjects/tools.json --check
+& tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe src/VsMcp.Bridge/tools.json
+& tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe src/VsMcp.Bridge/tools.json --check
 ```
 
-The catalog instantiates the production provider without automating an IDE. It checks unique tool names, descriptions/annotations and camelCase parameters. The live `ToolReferenceTests` checks `tests/VsMcp.TestProjects/tools.json` against `tools/list`; set `VS_MCP_UPDATE_TOOL_CATALOG=1` to regenerate it from the IDE. Keep the English `README.md` and Traditional Chinese `README.zh-TW.md` aligned with the tools.
+The catalog instantiates the production provider without automating an IDE. It checks unique tool names, descriptions/annotations and camelCase parameters. The live `ToolReferenceTests` checks `src/VsMcp.Bridge/tools.json` against `tools/list`; set `VS_MCP_UPDATE_TOOL_CATALOG=1` to regenerate it from the IDE, then rebuild the bridge to embed the updated catalog. Keep the English `README.md` and Traditional Chinese `README.zh-TW.md` aligned with the tools. Bridge tests cover offline stdio discovery, explicit selection between instances, PID/registration and endpoint reuse, schema and identity mismatches, in-flight binding protection, interrupted mutation recovery and deployment leases.
 
 After building the Release package:
 
@@ -64,6 +69,8 @@ dotnet test tests/VsMcp.IntegrationTests
 ```
 
 Integration tests install into the experimental hive, copy fixtures to isolated temporary directories, launch on port 18772 and verify the loaded DLL's version/hash before exercising tools. They close only their owned test instances. `VS_MCP_VS_ROOT` selects the VS installation; `VS_MCP_TEST_PORT` overrides the endpoint port. Keep other experimental instances closed during installation. Normal VS profiles are not used.
+
+The bridge integration test additionally starts two owned experimental instances with automatic port selection. It verifies distinct endpoints, stdio discovery and binding, solution-close isolation and continued bridge availability after one VS exits.
 
 Coverage includes solution/configuration queries; dependency-aware builds, failure and cancellation; unsaved C++/C# buffer edits and stale-write rejection; managed unsaved semantic queries; native definition locations; native and managed VSTest results; filtering/no-tests/recovery/cancellation; and managed/native debugger inspection. The managed test fixture intentionally includes failing and slow tests for result/cancellation checks. The native fixture includes an intentionally failing test too.
 
@@ -77,6 +84,6 @@ Compiler/analyzer dependency warnings inherited from the SDK/host combination re
 
 ## Verified release
 
-Version 0.4.0 was built and installed into Visual Studio 2026 Community's experimental hive (18.11.12328.437). All 44 integration tests and 9 unit tests passed, along with the HTTP harness and live SDK catalog comparison. Both native C++ and managed C# debugger inspection were exercised against real processes. The managed debug fixture targets .NET 10 so it runs with the declared SDK/runtime prerequisites.
+Version 0.4.0 was built and installed into Visual Studio 2026 Community's experimental hive (18.11.12328.437). All 45 integration tests, 11 bridge tests and 9 unit tests passed, along with the HTTP harness and live SDK catalog comparison. Both native C++ and managed C# debugger inspection were exercised against real processes, along with explicit stdio selection between two running VS instances using automatic ports. The managed debug fixture targets .NET 10 so it runs with the declared SDK/runtime prerequisites.
 
 C++ source-definition queries were verified with the installed native provider. C++ References remains provider-dependent and is not claimed as universally available; missing capabilities fail explicitly.

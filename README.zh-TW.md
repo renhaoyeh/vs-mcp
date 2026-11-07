@@ -2,14 +2,15 @@
 
 [English](README.md) | 繁體中文
 
-讓 MCP agent 直接使用 Visual Studio 2026 的 C++／C# 開發能力。MCP 伺服器在連線的 IDE 內執行，透過 Streamable HTTP 提供方案、建置、未儲存文件、偵錯、診斷、語意導覽與測試結果。預設端點是 `http://127.0.0.1:18770/mcp`。
+讓 MCP agent 直接使用 Visual Studio 2026 的 C++／C# 開發能力。MCP 伺服器在連線的 IDE 內執行，透過 Streamable HTTP 提供方案、建置、未儲存文件、偵錯、診斷、語意導覽與測試結果。隨附的 .NET stdio 橋接程式提供固定的用戶端入口，並可明確選擇要操作的 VS 執行個體。
 
 ## 功能與工具一覽
 
-目前共 **44 個工具**。以下列出完整名稱、用途與回傳內容；只顯示視窗、終端或移動游標的工具已從 0.4.0 移除。
+目前有 **44 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容；只顯示視窗、終端或移動游標的工具已從 0.4.0 移除。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
+| 橋接執行個體管理 | `list_vs_instances`、`connect_vs_instance` | 列出執行中的 VS、PID、instanceId、端點及即時方案資訊，並將這個橋接程式明確綁定到指定執行個體。VS 未開啟時，這兩個工具仍可使用。 |
 | 執行個體與方案查詢 | `get_vs_info`、`get_projects`、`get_solution_configurations`、`get_project_dependencies` | 確認服務中的 VS PID、版本及方案路徑；查詢專案／方案資料夾、組態映射與建置依賴。 |
 | 方案開關 | `solution_open`、`solution_close` | 開啟／關閉方案；拒絕未儲存文件或方案，避免遺失修改。 |
 | 啟動與組態設定 | `startup_project_get`、`startup_project_set`、`build_configuration_set` | 讀取／明確設定啟動專案，或切換指定組態與平台；不會猜測其他設定。 |
@@ -25,7 +26,7 @@
 | 測試 | `test_run`、`test_status`、`test_cancel` | 執行指定的已建置測試 DLL／EXE，回傳 run ID、執行狀態、TRX 統計、個別結果、失敗訊息與堆疊；支援篩選、等待及取消。 |
 | 進階擴充 | `execute_code` | 在 VS UI thread 執行 C# method body，存取 DTE 與 VS services，回傳可序列化資料。此工具具有任意程式執行能力。 |
 
-完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供；測試快照保存在 [tests/VsMcp.TestProjects/tools.json](tests/VsMcp.TestProjects/tools.json)。
+完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供。[src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) 保存產生的 IDE 工具目錄，讓橋接程式在 VS 尚未啟動時仍能提供固定的工具定義；連接時會核對實際 IDE 的工具目錄。
 
 ## C++／C# 支援範圍
 
@@ -57,7 +58,7 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 
 | 工作 | 建議順序 | 保護與注意事項 |
 | --- | --- | --- |
-| 確認目標 | `get_vs_info` → 檢查 PID、版本與方案路徑。 | 每個 VS 執行個體使用自己的明確連接埠；碰撞不會自動改連其他 instance。 |
+| 確認目標 | `list_vs_instances` → 用選定的 PID 與 instanceId 呼叫 `connect_vs_instance` → `get_vs_info` → 檢查版本與方案路徑。 | 每個橋接程式綁定一個執行個體；必須等待執行中的呼叫結束，再明確要求更換目標。直接使用 HTTP 的用戶端應先檢查 `get_vs_info`。 |
 | 修改程式 | `document_open` → `document_read` → 將回傳的 `sha256` 作為 `expectedSha256` 傳給 `editor_replace` 或 `document_write` → 視需要儲存。 | hash 過期時先重新讀取；一次修改是一個 undo transaction。讀取有行數／字數上限，行列從 1 開始。 |
 | 建置 | 查詢專案、依賴及目前組態 → `build_projects` → 必要時 `get_build_status`。 | build／rebuild 納入必要依賴；clean 不額外加入依賴。建置本身不切換組態。 |
 | 執行測試 | 先完成建置 → `test_run` 指定絕對 DLL／EXE 路徑、可選 filter／settings／adapter 路徑及架構 → `test_status`。 | 連線中斷不會取消測試；遺失 run ID 時，可省略 `test_status` 的 `runId` 查詢最近一次工作。取消必須指定 run ID。 |
@@ -75,17 +76,21 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 
 在 Visual Studio 開啟 `VsMcp.slnx`，選擇 Release 並建置 `VsMcp.Vsix` 專案。安裝包會產生在 `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`。
 
-安裝後重新啟動 VS，並設定 MCP 用戶端：
+安裝 VSIX 後先啟動 VS 一次，擴充套件會將隨附的橋接程式安裝到 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`。橋接程式需要 .NET 10 runtime。請使用自己帳號的完整執行檔路徑設定 MCP 用戶端：
 
 ```json
 {
   "mcpServers": {
-    "visual-studio": { "url": "http://127.0.0.1:18770/mcp" }
+    "visual-studio": {
+      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
+    }
   }
 }
 ```
 
-啟動 VS 前可設定 `VS_MCP_PORT` 選擇其他連接埠。伺服器只監聽 loopback，驗證 Host／Origin，目前沒有認證 token。
+先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。更新橋接程式前請先關閉橋接用戶端，再重新啟動 VS。
+
+直接使用 HTTP 的用戶端仍可連接 `http://127.0.0.1:18770/mcp`。未設定 `VS_MCP_PORT` 時，VS 會先嘗試 18770，碰撞時選擇空閒連接埠，由橋接程式探索實際端點。啟動 VS 前設定 `VS_MCP_PORT` 則會固定連接埠，不會自動改用其他埠。伺服器只監聽 loopback，驗證 Host／Origin，目前沒有認證 token。橋接請求另會識別選定的登記資料，避免連接埠被重用時把呼叫送到另一個執行個體。
 
 `execute_code` 以使用者權限在 UI thread 執行任意程式碼，沒有 sandbox、執行逾時或 rollback。任何修改操作若遇到連線中斷，都應先檢查效果，再決定是否重試。
 
@@ -99,6 +104,6 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 | `Services/` | 依方案、建置、文件、偵錯、語言導覽及測試拆分的服務。 |
 | `Infrastructure/` | VSTest 子程序、參數處理、輸出擷取與 Windows process job。 |
 
-0.4.0 已安裝至 VS 2026 Community 實驗執行個體驗證：**44 項整合測試、9 項單元測試全部通過**，另通過 HTTP harness 與 live 工具 schema 比對。C++／C# 的建置、文件、測試及偵錯皆有實測；C++ 參考查詢仍受上述 provider 能力限制。
+0.4.0 已安裝至 VS 2026 Community 實驗執行個體驗證：**45 項整合測試、11 項橋接測試、9 項單元測試全部通過**，另通過 HTTP harness 與 live 工具 schema 比對。C++／C# 的建置、文件、測試及偵錯，以及透過 stdio 控制兩個自動分配連接埠的 VS 執行個體皆有實測；C++ 參考查詢仍受上述 provider 能力限制。
 
 更完整的架構、依賴版本、測試指令與實驗執行個體流程請見 [DEVELOPMENT.md](DEVELOPMENT.md)。

@@ -40,9 +40,15 @@ jobs:
           if (-not $msbuild) { throw 'Visual Studio 2026 MSBuild was not found.' }
           & $msbuild src/VsMcp.Vsix/VsMcp.Vsix.csproj -restore -p:Configuration=Release -v:minimal -nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $msbuild tests/VsMcp.ToolCatalog/VsMcp.ToolCatalog.csproj -restore -p:Configuration=Release -v:minimal -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe src/VsMcp.Bridge/tools.json --check
 
       - name: Run unit tests
-        run: dotnet test tests/VsMcp.UnitTests -c Release
+        run: |
+          dotnet test tests/VsMcp.UnitTests -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test tests/VsMcp.BridgeTests -c Release
 
       - name: Run protocol harness
         run: |

@@ -35,15 +35,17 @@ namespace VsMcp.Mcp
             "available values; choose one explicitly instead of assuming.";
 
         private readonly int _port;
+        private readonly string _instanceId;
         private readonly IMcpToolProvider _tools;
         private readonly Action<string> _log;
         private readonly HttpListener _listener = new HttpListener();
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly ILoggerFactory _loggerFactory = NullLoggerFactory.Instance;
 
-        public McpHttpServer(int port, IMcpToolProvider tools, Action<string> log)
+        public McpHttpServer(int port, IMcpToolProvider tools, Action<string> log, string instanceId = null)
         {
             _port = port;
+            _instanceId = instanceId;
             _tools = tools;
             _log = log ?? (_ => { });
             _listener.Prefixes.Add($"http://127.0.0.1:{port}/");
@@ -109,6 +111,12 @@ namespace VsMcp.Mcp
             try
             {
                 var request = context.Request;
+                var expectedInstance = request.Headers["X-VsMcp-Instance"];
+                if (expectedInstance != null && expectedInstance != _instanceId)
+                {
+                    Respond(context, HttpStatusCode.Conflict, "The selected Visual Studio instance has changed.");
+                    return;
+                }
                 if (!IsLoopbackHost(request.Headers["Host"]) || !IsAllowedOrigin(request.Headers["Origin"]))
                 {
                     Respond(context, HttpStatusCode.Forbidden, "Forbidden");

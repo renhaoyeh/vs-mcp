@@ -311,12 +311,13 @@ internal static class ExpHost
     }
 
     /// <summary>Starts the experimental instance with a solution; the extension serves its MCP endpoint on <see cref="Port"/>.</summary>
-    public static Process Launch(string solutionPath)
+    public static Process Launch(string solutionPath, bool automaticPort = false)
     {
         Log($"starting the experimental instance with {solutionPath}");
         // /log must come last and without an argument: it takes the next argument as its output file.
         var info = new ProcessStartInfo(Ide("devenv.exe"), $"\"{solutionPath}\" /rootsuffix Exp /log") { UseShellExecute = false };
-        info.Environment["VS_MCP_PORT"] = Port.ToString();
+        if (automaticPort) info.Environment.Remove("VS_MCP_PORT");
+        else info.Environment["VS_MCP_PORT"] = Port.ToString();
         return Process.Start(info) ?? throw new XunitException("Cannot start devenv.exe");
     }
 }
