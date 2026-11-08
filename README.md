@@ -107,3 +107,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 Version 0.4.0 was installed and verified in the VS 2026 Community experimental instance: **45 integration tests, 11 bridge tests and 9 unit tests passed**, along with the HTTP harness and live tool schema comparison. C++ and C# builds, documents, tests and debugging were exercised, as was stdio control of two VS instances with automatic ports; C++ references remain subject to the provider limitations above.
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for architecture details, dependency versions, test commands and experimental-instance workflows.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

@@ -107,3 +107,7 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 0.4.0 已安裝至 VS 2026 Community 實驗執行個體驗證：**45 項整合測試、11 項橋接測試、9 項單元測試全部通過**，另通過 HTTP harness 與 live 工具 schema 比對。C++／C# 的建置、文件、測試及偵錯，以及透過 stdio 控制兩個自動分配連接埠的 VS 執行個體皆有實測；C++ 參考查詢仍受上述 provider 能力限制。
 
 更完整的架構、依賴版本、測試指令與實驗執行個體流程請見 [DEVELOPMENT.md](DEVELOPMENT.md)。
+
+## 授權
+
+本專案採用 [MIT License](LICENSE)。
