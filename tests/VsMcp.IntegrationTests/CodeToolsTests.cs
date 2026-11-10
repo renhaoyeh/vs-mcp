@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace VsMcp.IntegrationTests;
@@ -52,9 +53,41 @@ public sealed class CodeToolsTests(FixtureSession session)
     }
 
     [Fact]
-    public async Task Does_not_expose_window_or_terminal_display_helpers()
+    public async Task Shows_and_hides_only_the_connected_main_window()
+    {
+        var client = session.Client;
+        var before = await client.Call<CodeResult>("execute_code", new { code = "return DTE.MainWindow.HWnd.ToInt64();" });
+        var handle = new IntPtr(before.Result.GetInt64());
+        var visible = IsWindowVisible(handle);
+        var identity = await client.Call<InstanceInfo>("get_vs_info");
+        try
+        {
+            Assert.Contains("INVALID_ARGUMENT:", await client.Fail("show_vs_window", new { visible = false, activate = true }));
+            Assert.Equal(visible, IsWindowVisible(handle));
+            var hidden = await client.Call<JsonElement>("show_vs_window", new { visible = false });
+            Assert.False(hidden.GetProperty("visible").GetBoolean());
+            Assert.False(hidden.GetProperty("activationRequested").GetBoolean());
+            Assert.Equal(identity.Pid, hidden.GetProperty("instance").GetProperty("pid").GetInt32());
+            Assert.False(IsWindowVisible(handle));
+            var responsive = await client.Call<CodeResult>("execute_code", new { code = "return Microsoft.VisualStudio.Shell.ThreadHelper.CheckAccess();" });
+            Assert.True(responsive.Result.GetBoolean());
+            var shown = await client.Call<JsonElement>("show_vs_window");
+            Assert.True(shown.GetProperty("visible").GetBoolean());
+            Assert.True(IsWindowVisible(handle));
+            Assert.False(shown.GetProperty("activationRequested").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(shown.GetProperty("title").GetString()));
+        }
+        finally { await client.Call<JsonElement>("show_vs_window", new { visible }); }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr window);
+
+    [Fact]
+    public async Task Does_not_expose_other_window_or_terminal_display_helpers()
     {
         var names = (await session.Client.ListToolsAsync()).Select(t => t.Name).ToHashSet();
-        foreach (var name in new[] { "show_vs_window", "window_activate", "window_list", "terminal_show", "toolwindow_show", "test_run_all", "test_debug" }) Assert.DoesNotContain(name, names);
+        Assert.Contains("show_vs_window", names);
+        foreach (var name in new[] { "window_activate", "window_list", "terminal_show", "toolwindow_show", "test_run_all", "test_debug" }) Assert.DoesNotContain(name, names);
     }
 }

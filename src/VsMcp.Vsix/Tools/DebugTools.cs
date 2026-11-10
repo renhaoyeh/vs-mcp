@@ -34,6 +34,17 @@ namespace VsMcp.Tools
             _joinableTaskFactory = vs.JoinableTaskFactory;
         }
 
+        [McpServerTool(Name = "show_vs_window", Title = "Show or hide Visual Studio", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
+        [Description("Set the visibility of the connected Visual Studio main window. Showing does not call Activate unless activate is explicitly true. Hiding does not close VS or stop builds/debugging. Returns read-back visible state, activationRequested, title and instance identity. This is not a persistent background mode: VS can show itself again when debugging starts or stops at a breakpoint.")]
+        public async Task<CallToolResult> ShowWindowTool(
+            [Description("Whether the connected VS main window is visible. Default true; false hides it.")] bool visible = true,
+            [Description("Explicitly request foreground activation. Default false; requires visible=true. activationRequested reports the request, not proof of OS foreground focus.")] bool activate = false,
+            CancellationToken cancellationToken = default)
+        {
+            await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            return ToolJson.Result(_vs.Debug().SetWindowVisibility(_vs.Instance(), visible, activate));
+        }
+
         [McpServerTool(Name = "get_debug_status", Title = "Get debugger status", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
         [Description("Read withoutDebuggingRequest for Ctrl+F5 process confirmation (not waited on by waitSeconds). Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.")]
         public async Task<CallToolResult> GetDebugStatusTool(

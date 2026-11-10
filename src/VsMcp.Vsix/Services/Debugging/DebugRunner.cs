@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 using EnvDTE;
@@ -129,18 +130,36 @@ namespace VsMcp.Services.Debugging
                 .Cast<object>().Select(p => Convert.ToString(p)).ToArray() ?? Array.Empty<string>();
         }
 
-        public JObject ShowWindow(JObject instance)
+        public JObject SetWindowVisibility(JObject instance, bool visible, bool activate)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
-            _dte.MainWindow.Visible = true;
-            _dte.MainWindow.Activate();
+            if (activate && !visible) throw new McpToolException(ToolErrorCode.InvalidArgument, "activate requires visible to be true.");
+            var window = _dte.MainWindow;
+            var handle = window.HWnd;
+            if (GetWindowThreadProcessId(handle, out var pid) == 0 || pid != System.Diagnostics.Process.GetCurrentProcess().Id)
+                throw new McpToolException(ToolErrorCode.ExecutionError, "The main window does not belong to this connected VS process.");
+            // DTE forbids hiding a user-controlled IDE; ShowWindow preserves UserControl and returns the previous visibility.
+            ShowWindow(handle, visible ? SwShowNoActivate : SwHide);
+            if (activate) window.Activate();
+            var actual = IsWindowVisible(handle);
+            if (actual != visible) throw new McpToolException(ToolErrorCode.ExecutionError, "VS did not apply the requested main-window visibility.");
             return new JObject
             {
                 ["instance"] = instance,
-                ["visible"] = _dte.MainWindow.Visible,
-                ["title"] = _dte.MainWindow.Caption,
+                ["visible"] = actual,
+                ["activation_requested"] = activate,
+                ["title"] = window.Caption,
             };
         }
+
+        private const int SwHide = 0;
+        private const int SwShowNoActivate = 8;
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr window, int command);
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr window);
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
         public JObject Start(JObject instance)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
@@ -156,7 +175,7 @@ namespace VsMcp.Services.Debugging
             if (startup.Length == 0)
                 throw new McpToolException(ToolErrorCode.NoStartupProject, "The solution has no startup project.", Status(instance));
             var active = _dte.Solution.SolutionBuild.ActiveConfiguration as SolutionConfiguration2;
-            ShowWindow(instance);
+            SetWindowVisibility(instance, true, true);
             if (!_dte.Commands.Item("Debug.Start", 0).IsAvailable)
                 throw new McpToolException(ToolErrorCode.DebugStartUnavailable, "VS currently disables Debug.Start.");
 

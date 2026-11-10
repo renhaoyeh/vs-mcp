@@ -45,11 +45,12 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **51 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **52 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
 | Bridge instance management | `list_vs_instances`, `connect_vs_instance` | List running VS instances with PID, instanceId, endpoint and live solution identity; explicitly bind this bridge to the chosen instance. These tools remain available when no VS is running. |
+| VS main window | `show_vs_window` | Show or hide only the connected VS main window using `visible` (default true). Calls Activate only when `activate: true` is explicit; default false, and activation requires visibility. Returns visible state, activationRequested, title and instance identity. |
 | Instance and solution queries | `get_vs_info`, `get_projects`, `get_solution_configurations`, `get_project_dependencies` | Identify the serving VS process, version and solution path; query projects, solution folders, configuration mappings and build dependencies. |
 | Open and close solutions | `solution_open`, `solution_close` | Open or close a solution; reject operations when documents or the solution have unsaved changes. |
 | Unload and reload a project | `project_unload`, `project_reload` | Like Solution Explorer's Unload Project and Reload Project, by exact name or unique name. Retains the project in the solution. Requires an idle IDE and saved documents, solution and target project. Reload only accepts unloaded projects. |
@@ -70,6 +71,8 @@ There are **51 IDE tools**, plus **2 instance-management tools** exposed by the 
 `start_without_debugging` posts Ctrl+F5 using the current configuration and startup projects. It supports projects exposing one EXE through the active Built output group (managed DLLs require an EXE apphost). It returns `started`, PIDs and paths only after observing all expected executables as new descendants of this VS; this does not prove application readiness. Otherwise it returns `unconfirmed`. Observation continues up to 120 seconds independently of caller cancellation. Read `get_debug_status.withoutDebuggingRequest` for results. Builds, tests, debugging and unresolved launches prevent duplicate requests. Unconfirmed requests keep blocking launches. Use `without_debugging_reconcile(requestId)` to take a fresh process snapshot even after background observation expires. After inspecting VS, explicitly passing `abandonTracking: true` and `acknowledgeLaunchMayStillOccur: true` marks an unresolved request `abandoned` and releases tracking. This does not cancel a queued command, prove launch failure or terminate processes; a late launch is still possible. Stale request IDs cannot change newer requests, and active builds/tests/debugging prevent abandonment. Short-lived processes and detached launchers may be missed; external programs, browsers and dotnet-hosted DLL launches are unsupported. `stop_debugging` does not terminate these processes.
 
 The official MCP SDK generates parameter definitions, defaults and result schemas, available through MCP `tools/list`. The generated IDE catalog in [src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) lets the bridge expose stable tool definitions before VS starts. Connecting verifies that the live IDE tool catalog matches.
+
+`show_vs_window` with `visible: false` hides VS without closing it or stopping builds/debugging. Showing defaults to no explicit activation; pass `visible: true, activate: true` to request foreground activation. `activationRequested` reports the request, not proof of OS foreground focus. This tool does not establish a persistent background mode: starting debugging currently shows and activates VS, and VS can show itself on a breakpoint.
 
 ## C++ and C# support
 

@@ -2700,6 +2700,31 @@
       "outputSchema": null
     },
     {
+      "name": "show_vs_window",
+      "title": "Show or hide Visual Studio",
+      "description": "Set the visibility of the connected Visual Studio main window. Showing does not call Activate unless activate is explicitly true. Hiding does not close VS or stop builds/debugging. Returns read-back visible state, activationRequested, title and instance identity. This is not a persistent background mode: VS can show itself again when debugging starts or stops at a breakpoint.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "visible": {
+            "description": "Whether the connected VS main window is visible. Default true; false hides it.",
+            "type": "boolean",
+            "default": true
+          },
+          "activate": {
+            "description": "Explicitly request foreground activation. Default false; requires visible=true. activationRequested reports the request, not proof of OS foreground focus.",
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
       "name": "solution_close",
       "title": "solution_close",
       "description": "Close the current solution only when idle and all documents and the solution are saved.",

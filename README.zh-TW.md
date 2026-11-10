@@ -45,11 +45,12 @@
 
 ## 功能與工具一覽
 
-目前有 **51 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **52 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
 | 橋接執行個體管理 | `list_vs_instances`、`connect_vs_instance` | 列出執行中的 VS、PID、instanceId、端點及即時方案資訊，並將這個橋接程式明確綁定到指定執行個體。VS 未開啟時，這兩個工具仍可使用。 |
+| VS 主視窗 | `show_vs_window` | 用 `visible` 顯示／隱藏目前連線的 VS 主視窗，預設 true。只有明確指定 `activate: true` 才呼叫啟用，預設 false，且啟用時必須顯示。回傳 visible、activationRequested、標題及執行個體識別。 |
 | 執行個體與方案查詢 | `get_vs_info`、`get_projects`、`get_solution_configurations`、`get_project_dependencies` | 確認服務中的 VS PID、版本及方案路徑；查詢專案／方案資料夾、組態映射與建置依賴。 |
 | 方案開關 | `solution_open`、`solution_close` | 開啟／關閉方案；拒絕未儲存文件或方案，避免遺失修改。 |
 | 卸載與重新載入專案 | `project_unload`、`project_reload` | 對應方案總管右鍵的「卸載專案」與「重新載入專案」，以完整專案名稱或唯一名稱指定，保留方案中的專案項目。要求 IDE 閒置，且文件、方案與目標專案皆已儲存。重新載入僅接受已卸載的專案。 |
@@ -66,6 +67,8 @@
 | 語意導覽 | `goto_definition`、`find_references` | 回傳符號定義／參考的檔案、起訖行列與截斷狀態；各語言的支援限制見下表。 |
 | 測試 | `test_run`、`test_status`、`test_cancel` | 執行指定的已建置測試 DLL／EXE，回傳 run ID、執行狀態、TRX 統計、個別結果、失敗訊息與堆疊；支援篩選、等待及取消。 |
 | 進階擴充 | `execute_code` | 在 VS UI thread 執行 C# method body，存取 DTE 與 VS services，回傳可序列化資料。此工具具有任意程式執行能力。 |
+
+`show_vs_window` 傳入 `visible: false` 可隱藏 VS，不會關閉 VS 或停止建置／偵錯。顯示時預設不呼叫前景啟用；傳入 `visible: true, activate: true` 才會明確要求啟用。`activationRequested` 表示已提出要求，不代表作業系統已將焦點切過去。這不是持續背景模式：目前開始偵錯仍會顯示並啟用 VS，VS 也可能在命中斷點時自行顯示。
 
 完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供。[src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) 保存產生的 IDE 工具目錄，讓橋接程式在 VS 尚未啟動時仍能提供固定的工具定義；連接時會核對實際 IDE 的工具目錄。
 
