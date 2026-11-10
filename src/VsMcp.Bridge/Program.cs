@@ -15,7 +15,7 @@ internal static class Program
         foreach (var tool in catalog.Tools) tools.Add(new ForwardingTool(tool, connection));
         return new McpServerOptions
         {
-            ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = "0.4.0" },
+            ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = "0.5.0" },
             ServerInstructions = "Use list_vs_instances, then connect_vs_instance with the chosen PID and instanceId before calling IDE tools. "
                 + "Confirm the returned solution and process identity. The binding is local to this MCP connection. "
                 + "A restarted VS requires selecting the new instance explicitly. Interrupted mutations are never retried; inspect their effects before issuing another request.",
