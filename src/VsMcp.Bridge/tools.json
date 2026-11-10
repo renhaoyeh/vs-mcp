@@ -2656,6 +2656,50 @@
       "outputSchema": null
     },
     {
+      "name": "project_reload",
+      "title": "Reload unloaded project",
+      "description": "Reload one unloaded project by exact name or unique name, like Reload Project in Solution Explorer. Requires an idle IDE and saved documents and solution. Missing, ambiguous or already loaded projects fail. Does not reload a loaded project or change configuration. Inspect state before retrying an interrupted call.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "description": "Exact project name or unique name (relative project path), as returned by get_projects or project_unload.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "project_unload",
+      "title": "Unload project",
+      "description": "Unload one project by exact name or unique name while keeping it in the solution. Requires an idle IDE and saved documents, solution and target project. Missing or ambiguous names fail. Never removes project files. A cancelled or interrupted call must be inspected before retrying.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "description": "Exact project name or unique name (relative project path), as returned by get_projects.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
       "name": "solution_close",
       "title": "solution_close",
       "description": "Close the current solution only when idle and all documents and the solution are saved.",

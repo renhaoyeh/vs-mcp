@@ -13,6 +13,7 @@
 | 橋接執行個體管理 | `list_vs_instances`、`connect_vs_instance` | 列出執行中的 VS、PID、instanceId、端點及即時方案資訊，並將這個橋接程式明確綁定到指定執行個體。VS 未開啟時，這兩個工具仍可使用。 |
 | 執行個體與方案查詢 | `get_vs_info`、`get_projects`、`get_solution_configurations`、`get_project_dependencies` | 確認服務中的 VS PID、版本及方案路徑；查詢專案／方案資料夾、組態映射與建置依賴。 |
 | 方案開關 | `solution_open`、`solution_close` | 開啟／關閉方案；拒絕未儲存文件或方案，避免遺失修改。 |
+| 卸載與重新載入專案 | `project_unload`、`project_reload` | 對應方案總管右鍵的「卸載專案」與「重新載入專案」，以完整專案名稱或唯一名稱指定，保留方案中的專案項目。要求 IDE 閒置，且文件、方案與目標專案皆已儲存。重新載入僅接受已卸載的專案。 |
 | 啟動與組態設定 | `startup_project_get`、`startup_project_set`、`build_configuration_set` | 讀取／明確設定啟動專案，或切換指定組態與平台；不會猜測其他設定。 |
 | 建置 | `build_projects`、`get_build_status`、`cancel_build` | 建置、清除或重建指定專案／方案資料夾；回傳依賴順序、各專案結果、錯誤及 Build Output，可等待、查詢及取消。 |
 | 編輯器文件 | `document_list`、`document_active`、`document_open`、`document_read`、`document_write`、`document_save`、`document_close` | 讀寫 IDE 內的文件，包含未儲存內容；回傳儲存／唯讀狀態，讀取時提供完整 buffer 的 SHA-256。 |

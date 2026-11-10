@@ -113,4 +113,48 @@ public sealed class SolutionToolsTests(FixtureSession session)
         var a = Assert.Single((await client.Call<GetProjectDependenciesOutput>("get_project_dependencies", new { project = "A" })).Projects);
         Assert.Empty(a.AllDependencies);
     }
+
+    [Fact]
+    public async Task Unload_rejects_missing_projects_and_solution_folders()
+    {
+        await session.Client.Fail("project_unload", new { project = "" });
+        Assert.Contains("PROJECT_NOT_FOUND:", await session.Client.Fail("project_unload", new { project = "missing" }));
+        Assert.Contains("PROJECT_NOT_FOUND:", await session.Client.Fail("project_unload", new { project = "Libs" }));
+        await session.Client.Fail("project_reload", new { project = "" });
+        Assert.Contains("PROJECT_NOT_FOUND:", await session.Client.Fail("project_reload", new { project = "missing" }));
+        await session.Client.Fail("project_reload", new { project = "Root" });
+    }
+
+    [Fact]
+    public async Task Unload_keeps_the_project_in_the_solution_and_preserves_its_file()
+    {
+        var client = session.Client;
+        var before = await client.Call<GetProjectsOutput>("get_projects");
+        var project = Assert.Single(before.Projects, p => p.Name == "Root");
+        var contents = File.ReadAllBytes(project.FullName!);
+        var result = await client.Call<System.Text.Json.JsonElement>("project_unload", new { project = project.UniqueName });
+        var guid = result.GetProperty("data").GetProperty("projectGuid").GetGuid();
+        try
+        {
+            Assert.True(result.GetProperty("data").GetProperty("unloaded").GetBoolean());
+            Assert.Equal(project.UniqueName, result.GetProperty("data").GetProperty("project").GetString());
+            Assert.True(result.GetProperty("instance").GetProperty("pid").GetInt32() > 0);
+            Assert.Equal(contents, File.ReadAllBytes(project.FullName!));
+            await client.Fail("project_unload", new { project = project.UniqueName });
+            var state = await client.Call<System.Text.Json.JsonElement>("execute_code", new { code =
+                "var guid = new System.Guid(\"" + guid + "\"); Microsoft.VisualStudio.Shell.Interop.IVsHierarchy hierarchy; " +
+                "Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(Solution.GetProjectOfGuid(ref guid, out hierarchy)); " +
+                "object status; Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(hierarchy.GetProperty(0xfffffffe, (int)Microsoft.VisualStudio.Shell.Interop.__VSHPROPID5.VSHPROPID_ProjectUnloadStatus, out status)); return status;" });
+            Assert.Equal(0, state.GetProperty("result").GetInt32());
+        }
+        finally
+        {
+            var reloaded = await client.Call<System.Text.Json.JsonElement>("project_reload", new { project = project.UniqueName });
+            Assert.True(reloaded.GetProperty("data").GetProperty("loaded").GetBoolean());
+            Assert.Equal(guid, reloaded.GetProperty("data").GetProperty("projectGuid").GetGuid());
+        }
+        Assert.Equal(contents, File.ReadAllBytes(project.FullName!));
+        var restored = await client.Call<GetProjectsOutput>("get_projects");
+        Assert.Equal(project.Kind, Assert.Single(restored.Projects, p => p.UniqueName == project.UniqueName).Kind);
+    }
 }

@@ -26,7 +26,9 @@ public sealed class BridgeTests
             Command = "dotnet", Arguments = [typeof(VsMcp.Bridge.Program).Assembly.Location],
         }));
         var tools = await client.ListToolsAsync();
-        Assert.Equal(51, tools.Count);
+        Assert.Equal(53, tools.Count);
+        Assert.Contains(tools, tool => tool.Name == "project_unload");
+        Assert.Contains(tools, tool => tool.Name == "project_reload");
         Assert.Contains(tools, tool => tool.Name == "start_without_debugging");
         Assert.Contains(tools, tool => tool.Name == "without_debugging_reconcile");
         Assert.False(tools.Single(t => t.Name == "execute_code").ProtocolTool.Annotations!.IdempotentHint);
