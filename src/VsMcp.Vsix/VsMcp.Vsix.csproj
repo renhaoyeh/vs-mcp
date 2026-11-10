@@ -30,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="../VsMcp.Bridge/VsMcp.Bridge.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" />
     <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Management" />
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.6.38345" />
     <PackageReference Include="ModelContextProtocol.Core" Version="2.3.0" />

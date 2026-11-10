@@ -1865,7 +1865,7 @@
     {
       "name": "get_debug_status",
       "title": "Get debugger status",
-      "description": "Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.",
+      "description": "Read without_debugging_request for Ctrl+F5 process confirmation (not waited on by waitSeconds). Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.",
       "readOnly": true,
       "destructive": false,
       "idempotent": true,
@@ -2616,6 +2616,27 @@
       "inputSchema": {
         "type": "object",
         "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "start_without_debugging",
+      "title": "Start without debugging",
+      "description": "Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; never blindly retry. stop_debugging does not terminate these processes.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "waitSeconds": {
+            "description": "Seconds to wait for actual process confirmation; default 30. Observation continues independently up to 120 seconds.",
+            "type": "integer",
+            "default": 30,
+            "maximum": 120
+          }
+        }
       },
       "outputSchema": null
     },

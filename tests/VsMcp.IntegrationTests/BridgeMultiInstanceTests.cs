@@ -34,7 +34,7 @@ public sealed class BridgeMultiInstanceTests
             Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(builtBridge)),
                 System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(installedBridge)));
             await using var bridge = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions { Command = executable }));
-            Assert.Equal(46, (await bridge.ListToolsAsync()).Count);
+            Assert.Equal(47, (await bridge.ListToolsAsync()).Count);
             var discovered = await bridge.Call<JsonElement>("list_vs_instances");
             var pids = discovered.GetProperty("instances").EnumerateArray().Select(instance => instance.GetProperty("pid").GetInt32()).ToArray();
             Assert.Contains(first.Id, pids);
@@ -58,7 +58,7 @@ public sealed class BridgeMultiInstanceTests
             var unavailable = await bridge.CallToolAsync("get_vs_info");
             Assert.True(unavailable.IsError);
             Assert.Equal("VS_INSTANCE_UNAVAILABLE", unavailable.StructuredContent!.Value.GetProperty("error").GetString());
-            Assert.Equal(46, (await bridge.ListToolsAsync()).Count); // The external MCP survives a closed VS.
+            Assert.Equal(47, (await bridge.ListToolsAsync()).Count); // The external MCP survives a closed VS.
             await Bind(bridge, firstEntry);
             Assert.Equal(first.Id, (await bridge.Call<InstanceInfo>("get_vs_info")).Pid);
         }

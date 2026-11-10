@@ -6,7 +6,7 @@ Give MCP agents access to Visual Studio 2026's C++ and C# development capabiliti
 
 ## Tools
 
-There are **44 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
+There are **45 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ There are **44 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Builds | `build_projects`, `get_build_status`, `cancel_build` | Build, clean or rebuild selected projects or solution folders; return dependency order, per-project results, errors and Build Output, with waiting, polling and cancellation. |
 | Editor documents | `document_list`, `document_active`, `document_open`, `document_read`, `document_write`, `document_save`, `document_close` | Read and write IDE documents, including unsaved content; return saved/read-only state and the full buffer's SHA-256 when reading. |
 | Precise edits | `editor_replace` | Apply case-sensitive text replacements after checking SHA-256; reject missing or ambiguous matches and stale content. Replacing all matches requires an explicit option. |
-| Debug lifecycle and status | `start_debugging`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
+| Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |
@@ -25,6 +25,8 @@ There are **44 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Semantic navigation | `goto_definition`, `find_references` | Return definition/reference file paths, start/end positions and truncation state. Language limitations are listed below. |
 | Tests | `test_run`, `test_status`, `test_cancel` | Run specified, already-built test DLLs/EXEs; return run ID, status, TRX counts, individual results, failure messages and stacks, with filtering, waiting and cancellation. |
 | Advanced execution | `execute_code` | Execute a C# method body on the VS UI thread with access to DTE and VS services; return serializable data. This tool can execute arbitrary code. |
+
+`start_without_debugging` posts Ctrl+F5 using the current configuration and startup projects. It supports projects exposing one EXE through the active Built output group (managed DLLs require an EXE apphost). It returns `started`, PIDs and paths only after observing all expected executables as new descendants of this VS; this does not prove application readiness. Otherwise it returns `unconfirmed`. Observation continues up to 120 seconds independently of caller cancellation. Read `get_debug_status.without_debugging_request` for results. Builds, tests, debugging and unresolved launches prevent duplicate requests. Unconfirmed requests keep blocking launches: inspect VS and restart the extension after resolving them. Short-lived processes and detached launchers may be missed; external programs, browsers and dotnet-hosted DLL launches are unsupported. `stop_debugging` does not terminate these processes.
 
 The official MCP SDK generates parameter definitions, defaults and result schemas, available through MCP `tools/list`. The generated IDE catalog in [src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) lets the bridge expose stable tool definitions before VS starts. Connecting verifies that the live IDE tool catalog matches.
 
@@ -50,6 +52,7 @@ Test tools run already-built binaries. They do not build, restore or synchronize
 | --- | --- | --- |
 | Build | Returns the final result, or `running` when the wait expires. A wait timeout does not cancel the build. | Poll `get_build_status` until a final status is available. |
 | Debug start, stop, break, continue and step | The command/API request was accepted; the target process may still be changing state. | Check mode, request status and process data with `get_debug_status`; avoid blindly repeating commands. |
+| Ctrl+F5 | `started` confirms observed target processes; `unconfirmed` means launch is still unresolved. | Read `get_debug_status.without_debugging_request`; do not retry while unconfirmed. |
 | Document edit | The editor buffer changed and usually has not been saved to disk. | Check document state; call `document_save` or explicitly request `save` when writing if persistence is needed. |
 | Semantic navigation | Returns locations or an explicit unsupported/query-failure result. | Use the returned paths and positions. |
 | Tests | Returns a run ID and current status; completed runs include actual TRX results. | Collect results with `test_status`; `noTests` is not a pass, and runner errors or missing reports are not reported as success. |

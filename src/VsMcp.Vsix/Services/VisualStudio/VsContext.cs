@@ -30,6 +30,9 @@ namespace VsMcp.Services.VisualStudio
         private readonly DTE2 _dte;
         private readonly JoinableTaskFactory _joinableTaskFactory;
         private DebugRunner _debugRunner;
+        private WithoutDebuggingRunner _withoutDebugging;
+        public WithoutDebuggingRunner WithoutDebugging() => _withoutDebugging ?? (_withoutDebugging = new WithoutDebuggingRunner(this));
+        public JObject WithoutDebuggingStatus => _withoutDebugging?.Status;
 
         public VsContext(DTE2 dte, JoinableTaskFactory joinableTaskFactory)
         {
@@ -43,7 +46,7 @@ namespace VsMcp.Services.VisualStudio
         public Func<bool> TestsRunning { get; set; } = () => false;
 
         /// <summary>True while a debug launch has been posted and not yet resolved.</summary>
-        public bool DebugLaunchPending => _debugRunner != null && _debugRunner.IsPending;
+        public bool DebugLaunchPending => (_debugRunner != null && _debugRunner.IsPending) || (_withoutDebugging != null && _withoutDebugging.IsPending);
 
         public DebugRunner Debug() => _debugRunner ?? (_debugRunner = new DebugRunner(_dte, _joinableTaskFactory));
 

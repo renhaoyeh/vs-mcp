@@ -39,6 +39,37 @@ public sealed class DebugToolsTests(DebugSession session)
     }
 
     [Fact]
+    public async Task Starts_without_debugging_and_confirms_real_process()
+    {
+        var client = session.Client;
+        var before = await client.Call<DebugStatus>("get_debug_status", new { waitSeconds = 0 });
+        var build = await client.Call<BuildOutput>("build_projects", new { projects = before.StartupProjects, timeoutSeconds = 60 });
+        Assert.Equal(BuildStatus.Succeeded, build.Status);
+        var accepted = await client.Call<System.Text.Json.JsonElement>("start_without_debugging", new { waitSeconds = 0 });
+        Assert.Equal("unconfirmed", accepted.GetProperty("status").GetString());
+        var deadline = DateTime.UtcNow.AddSeconds(45);
+        System.Text.Json.JsonElement launch;
+        do
+        {
+            var status = await client.Call<System.Text.Json.JsonElement>("get_debug_status", new { waitSeconds = 0 });
+            Assert.Equal("dbgDesignMode", status.GetProperty("mode").GetString());
+            launch = status.GetProperty("without_debugging_request");
+            if (launch.GetProperty("status").GetString() == "started") break;
+            await Task.Delay(250);
+        } while (DateTime.UtcNow < deadline);
+        Assert.Equal("started", launch.GetProperty("status").GetString());
+        Assert.Equal(before.SolutionConfiguration, launch.GetProperty("solution_configuration").GetString());
+        Assert.Equal(before.Platform, launch.GetProperty("platform").GetString());
+        foreach (var item in launch.GetProperty("processes").EnumerateArray())
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(item.GetProperty("pid").GetInt32());
+            Assert.Equal(item.GetProperty("path").GetString(), process.MainModule!.FileName, ignoreCase: true);
+            process.Kill();
+            await process.WaitForExitAsync();
+        }
+    }
+
+    [Fact]
     public async Task Starts_reports_and_stops_a_debug_session()
     {
         var client = session.Client;
@@ -64,6 +95,7 @@ public sealed class DebugToolsTests(DebugSession session)
         {
             // Starting again, or building, is refused while debugging; nothing is posted.
             Assert.Contains("DEBUGGER_ACTIVE:", await client.Fail("start_debugging"));
+            Assert.Contains("DEBUGGER_ACTIVE:", await client.Fail("start_without_debugging"));
             Assert.Contains("DEBUGGER_ACTIVE:", await client.Fail("build_projects", new
             {
                 projects = status.StartupProjects,

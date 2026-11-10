@@ -35,14 +35,16 @@ namespace VsMcp.Tools
         }
 
         [McpServerTool(Name = "get_debug_status", Title = "Get debugger status", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-        [Description("Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.")]
+        [Description("Read without_debugging_request for Ctrl+F5 process confirmation (not waited on by waitSeconds). Read the current solution, active configuration, startup projects, debugger mode, debugged process IDs and paths, and latest launch request phase. requested only means F5 was posted; running/break and process readback prove debugger activity. ended means VS reported return to design mode. No launch is retried automatically. Set waitSeconds to block (event-driven, no polling needed) while a start or stop request is still unresolved: it returns as soon as the debugger enters run/break/design mode, or after waitSeconds with the current status. The default is 10; 0 returns immediately. Only an unresolved start/stop request is waited on; otherwise it returns at once.")]
         public async Task<CallToolResult> GetDebugStatusTool(
             [Description("Maximum seconds to wait for an unresolved start/stop request to resolve. Default 10; 0 returns immediately.")] [Range(0, 120)] int waitSeconds = 10,
             CancellationToken cancellationToken = default)
         {
             await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             var wait = TimeSpan.FromSeconds(Math.Max(0, Math.Min(120, waitSeconds)));
-            return ToolJson.Result(await _vs.Debug().StatusAsync(_vs.Instance(), wait, cancellationToken));
+            var status = await _vs.Debug().StatusAsync(_vs.Instance(), wait, cancellationToken);
+            status["without_debugging_request"] = _vs.WithoutDebuggingStatus;
+            return ToolJson.Result(status);
         }
 
         [McpServerTool(Name = "start_debugging", Title = "Start debugging", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
@@ -51,7 +53,19 @@ namespace VsMcp.Tools
         {
             await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             if (_vs.TestsRunning()) throw new McpToolException(ToolErrorCode.ExecutionError, "Wait for or cancel the owned test run before debugging.");
+            if (_vs.DebugLaunchPending) throw new McpToolException(ToolErrorCode.DebugLaunchPending, "A launch is unresolved; inspect get_debug_status.");
             return ToolJson.Result(_vs.Debug().Start(_vs.Instance()));
+        }
+
+        [McpServerTool(Name = "start_without_debugging", Title = "Start without debugging", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
+        [Description("Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; never blindly retry. stop_debugging does not terminate these processes.")]
+        public async Task<CallToolResult> StartWithoutDebuggingTool(
+            [Description("Seconds to wait for actual process confirmation; default 30. Observation continues independently up to 120 seconds.")] [Range(0, 120)] int waitSeconds = 30,
+            CancellationToken cancellationToken = default)
+        {
+            await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            if (_vs.TestsRunning()) throw new McpToolException(ToolErrorCode.ExecutionError, "Wait for or cancel the owned test run before launching.");
+            return ToolJson.Result(await _vs.WithoutDebugging().StartAsync(Math.Max(0, Math.Min(120, waitSeconds)), cancellationToken));
         }
 
         [McpServerTool(Name = "stop_debugging", Title = "Stop debugging", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = true)]
