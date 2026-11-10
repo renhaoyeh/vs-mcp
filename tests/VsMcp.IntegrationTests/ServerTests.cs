@@ -10,6 +10,7 @@ public sealed class ServerTests(FixtureSession session)
 {
     private static readonly string[] ToolNames =
     {
+        "debugger_attach",
         "breakpoint_enable", "build_configuration_set", "build_projects", "cancel_build", "debugger_add_breakpoint", "debugger_break", "debugger_continue", "debugger_evaluate", "debugger_get_callstack", "debugger_get_locals", "debugger_list_breakpoints", "debugger_list_threads", "debugger_remove_breakpoint", "debugger_select_frame", "debugger_select_thread", "debugger_step_into", "debugger_step_out", "debugger_step_over", "document_active", "document_close", "document_list", "document_open", "document_read", "document_save", "document_write", "editor_replace", "errors_list", "execute_code", "find_references", "get_build_status", "get_debug_status", "get_project_dependencies", "get_projects", "get_solution_configurations", "get_vs_info", "goto_definition", "output_list_panes", "output_read", "project_reload", "project_unload", "show_vs_window", "solution_close", "solution_open", "start_debugging", "start_without_debugging", "startup_project_get", "startup_project_set", "stop_debugging", "test_cancel", "test_run", "test_status", "without_debugging_reconcile",
     };
 

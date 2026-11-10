@@ -400,6 +400,35 @@
       "outputSchema": null
     },
     {
+      "name": "debugger_attach",
+      "title": "Attach debugger to process",
+      "description": "Attach the connected IDE debugger to one local PID after verifying its exact executable path. Requires an idle IDE without a pending launch. engine optionally selects an installed debugger engine name or GUID; omitted uses automatic selection. This can pause the target. Inspect get_debug_status after an interrupted call; never blindly retry. Does not launch or build anything.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "type": "integer"
+          },
+          "expectedPath": {
+            "type": "string"
+          },
+          "engine": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "processId",
+          "expectedPath"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
       "name": "debugger_break",
       "title": "debugger_break",
       "description": "Request a running debug session to pause. Acceptance does not prove it has paused.",

@@ -9,6 +9,34 @@ namespace VsMcp.IntegrationTests;
 [Collection("Debug")]
 public sealed class DebugToolsTests(DebugSession session)
 {
+    [Fact]
+    public async Task Attaches_to_existing_process_after_checking_path()
+    {
+        var client = session.Client;
+        var status = await client.Call<DebugStatus>("get_debug_status");
+        Assert.Equal(BuildStatus.Succeeded, (await client.Call<BuildOutput>("build_projects", new { projects = status.StartupProjects })).Status);
+        var launch = await client.Call<System.Text.Json.JsonElement>("start_without_debugging", new { waitSeconds = 30 });
+        Assert.Equal("started", launch.GetProperty("status").GetString());
+        var target = launch.GetProperty("processes").EnumerateArray().Single();
+        using var process = System.Diagnostics.Process.GetProcessById(target.GetProperty("pid").GetInt32());
+        var path = target.GetProperty("path").GetString();
+        try
+        {
+            Assert.Contains("INVALID_ARGUMENT", await client.Fail("debugger_attach", new { processId = process.Id, expectedPath = path + ".wrong" }));
+            var result = await client.Call<System.Text.Json.JsonElement>("debugger_attach", new { processId = process.Id, expectedPath = path });
+            Assert.True(result.GetProperty("data").GetProperty("attached").GetBoolean());
+            Assert.Contains((await client.Call<DebugStatus>("get_debug_status")).Processes, p => p.Pid == process.Id);
+            await client.Call<System.Text.Json.JsonElement>("debugger_break");
+            Assert.Equal("dbgBreakMode", (await WaitFor(client, s => s.Mode == "dbgBreakMode", 15)).Mode);
+            Assert.True((await client.Call<System.Text.Json.JsonElement>("debugger_get_callstack")).ValueKind != System.Text.Json.JsonValueKind.Undefined);
+        }
+        finally
+        {
+            await client.Call<DebugStatus>("stop_debugging");
+            await WaitFor(client, s => s.Mode == "dbgDesignMode", 30);
+            if (!process.HasExited) process.Kill();
+        }
+    }
     private sealed record PhaseInfo(string? Phase);
 
     private sealed record ProcessInfo(int Pid, string? Path);

@@ -20,6 +20,27 @@ namespace VsMcp.Tools
         private readonly VsContext vs;
         private EnvDTE.Program _contextProgram;
         public DebuggerTools(VsContext context) { vs = context; }
+        [McpServerTool(Name = "debugger_attach", Title = "Attach debugger to process", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
+        [Description("Attach the connected IDE debugger to one local PID after verifying its exact executable path. Requires an idle IDE without a pending launch. engine optionally selects an installed debugger engine name or GUID; omitted uses automatic selection. This can pause the target. Inspect get_debug_status after an interrupted call; never blindly retry. Does not launch or build anything.")]
+        public async Task<CallToolResult> AttachAsync(int processId, string expectedPath, string engine = null, CancellationToken cancellationToken = default)
+        {
+            await vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            if (processId <= 0 || processId == System.Diagnostics.Process.GetCurrentProcess().Id || string.IsNullOrWhiteSpace(expectedPath) || !System.IO.Path.IsPathRooted(expectedPath))
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Provide a local target PID other than this IDE and its absolute expectedPath.");
+            if (vs.Dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode || vs.DebugLaunchPending || vs.TestsRunning() || vs.Dte.Solution.SolutionBuild.BuildState == vsBuildState.vsBuildStateInProgress)
+                throw new McpToolException(ToolErrorCode.ExecutionError, "Wait for builds, tests, debugging and pending launches to finish before attaching.");
+            using (var target = System.Diagnostics.Process.GetProcessById(processId))
+            {
+                if (!string.Equals(target.MainModule.FileName, System.IO.Path.GetFullPath(expectedPath), StringComparison.OrdinalIgnoreCase))
+                    throw new McpToolException(ToolErrorCode.InvalidArgument, "The PID executable does not match expectedPath.");
+                var process = vs.Dte.Debugger.LocalProcesses.Cast<EnvDTE.Process>().SingleOrDefault(p => p.ProcessID == processId);
+                if (process == null) throw new McpToolException(ToolErrorCode.InvalidArgument, "The PID is not available to the connected debugger.");
+                cancellationToken.ThrowIfCancellationRequested();
+                ((EnvDTE80.Process2)process).Attach2(engine == null ? null : new[] { engine });
+                var attached = vs.Dte.Debugger.DebuggedProcesses.Cast<EnvDTE.Process>().Any(p => p.ProcessID == processId);
+                return Result(new { processId, attached, mode = vs.Dte.Debugger.CurrentMode.ToString() });
+            }
+        }
         private CallToolResult Result(object data) { ThreadHelper.ThrowIfNotOnUIThread(); return ToolJson.Result(new JObject { ["instance"] = vs.Instance(), ["data"] = JToken.Parse(System.Text.Json.JsonSerializer.Serialize(data, ToolJson.Options)) }); }
         private void Paused() {
             ThreadHelper.ThrowIfNotOnUIThread(); if (vs.Dte.Debugger.CurrentMode != dbgDebugMode.dbgBreakMode) throw new InvalidOperationException("Debugger must be paused at a breakpoint."); }
