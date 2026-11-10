@@ -43,7 +43,10 @@ internal static class ToolCalls
         using var timeout = new CancellationTokenSource(CallTimeout);
         try
         {
-            return await client.CallToolAsync(name, Arguments(arguments), cancellationToken: timeout.Token);
+            var result = await client.CallToolAsync(name, Arguments(arguments), cancellationToken: timeout.Token);
+            if (name == "get_debug_status" && result.StructuredContent is JsonElement status)
+                ExpHost.VerifyBackgroundProcesses(status);
+            return result;
         }
         catch (OperationCanceledException) when (timeout.IsCancellationRequested)
         {

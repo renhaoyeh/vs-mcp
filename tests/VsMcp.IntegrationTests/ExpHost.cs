@@ -17,6 +17,13 @@ internal static class ExpHost
 
     private static readonly Lazy<bool> InstallResult = new(() => { InstallExtension(); return true; });
     private static readonly Lazy<bool> PreflightResult = new(Preflight);
+    private static readonly Lazy<TestDesktop> Desktop = new(() =>
+    {
+        var desktop = new TestDesktop();
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => desktop.Dispose();
+        Log("isolated desktop " + desktop.Name);
+        return desktop;
+    });
 
     /// <summary>Progress goes to stderr and to this file, so a long step is visible and a failure says where it stopped.</summary>
     public static string LogFile { get; } = Path.Combine(Path.GetTempPath(), "vs-mcp-tests.log");
@@ -64,13 +71,12 @@ internal static class ExpHost
     private static string Ide(string file) => Path.Combine(VsRoot, "Common7", "IDE", file);
 
     /// <summary>
-    /// Runs a program without any window and waits for it. The Visual Studio installer opens its own console window even
-    /// with /quiet unless it is started hidden through the shell, so the output of these programs is not captured.
+    /// Runs installer/configuration helpers on the isolated desktop and waits without capturing output.
     /// </summary>
     private static void RunHidden(string file, string arguments, int timeoutSeconds, bool ignoreExitCode = false)
     {
-        var info = new ProcessStartInfo(file, arguments) { UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden };
-        using var process = Process.Start(info) ?? throw new XunitException("Cannot start " + file);
+        var info = new ProcessStartInfo(file, arguments) { UseShellExecute = false };
+        using var process = Desktop.Value.Start(info);
         if (!process.WaitForExit(timeoutSeconds * 1000))
         {
             process.Kill(entireProcessTree: true);
@@ -162,7 +168,7 @@ internal static class ExpHost
     {
         const string code = "var a = System.AppDomain.CurrentDomain.GetAssemblies().First(x => x.GetName().Name == \"VsMcp\");" +
             "byte[] hash; using (var sha = System.Security.Cryptography.SHA256.Create()) hash = sha.ComputeHash(System.IO.File.ReadAllBytes(a.Location));" +
-            "return new { version = a.GetName().Version.ToString(), sha256 = System.BitConverter.ToString(hash).Replace(\"-\", \"\").ToLowerInvariant(), location = a.Location };";
+            "return new { version = a.GetName().Version.ToString(), sha256 = System.BitConverter.ToString(hash).Replace(\"-\", \"\").ToLowerInvariant(), location = a.Location, windowHandle = DTE.MainWindow.HWnd.ToInt64() };";
         var running = (await client.Call<CodeResult>("execute_code", new { code })).Result;
 
         var expected = Identity;
@@ -172,9 +178,14 @@ internal static class ExpHost
             throw new XunitException($"The instance does not run the package under test. Package: version {expected.Version}, VsMcp.dll sha256 {expected.DllSha256}. " +
                                      $"Running: version {running.Version}, sha256 {running.Sha256} ({running.Location}). Rebuild the package or reinstall it.");
         Log($"verified: the instance runs VsMcp.dll {running.Version} sha256 {running.Sha256[..12]}");
+        try { Desktop.Value.VerifyWindow(new IntPtr(running.WindowHandle)); }
+        catch (Exception error) { throw new XunitException("Background window isolation failed: " + error.Message); }
+        var hidden = await client.Call<System.Text.Json.JsonElement>("show_vs_window", new { visible = false });
+        Assert.False(hidden.GetProperty("visible").GetBoolean());
+        Log("verified: isolated desktop and hidden main window");
     }
 
-    private sealed record LoadedAssembly(string Version, string Sha256, string Location);
+    private sealed record LoadedAssembly(string Version, string Sha256, string Location, long WindowHandle);
 
     private sealed record CodeResult(LoadedAssembly Result);
 
@@ -323,15 +334,25 @@ internal static class ExpHost
         }
     }
 
+    internal static void VerifyBackgroundProcesses(System.Text.Json.JsonElement status)
+    {
+        if (status.TryGetProperty("processes", out var processes))
+            foreach (var process in processes.EnumerateArray()) Desktop.Value.VerifyProcess(process.GetProperty("pid").GetInt32());
+        if (status.TryGetProperty("withoutDebuggingRequest", out var launch) && launch.ValueKind == System.Text.Json.JsonValueKind.Object)
+            VerifyBackgroundProcesses(launch);
+    }
+
+    internal static bool WindowIsVisible(IntPtr window) => Desktop.Value.WindowIsVisible(window);
+
     /// <summary>Starts the experimental instance with a solution; the extension serves its MCP endpoint on <see cref="Port"/>.</summary>
     public static Process Launch(string solutionPath, bool automaticPort = false)
     {
         Log($"starting the experimental instance with {solutionPath}");
         // /log must come last and without an argument: it takes the next argument as its output file.
-        var info = new ProcessStartInfo(Ide("devenv.exe"), $"\"{solutionPath}\" /rootsuffix Exp /log") { UseShellExecute = false };
+        var info = new ProcessStartInfo(Ide("devenv.exe"), $"\"{solutionPath}\" /rootsuffix Exp /NoSplash /log") { UseShellExecute = false };
         if (automaticPort) info.Environment.Remove("VS_MCP_PORT");
         else info.Environment["VS_MCP_PORT"] = Port.ToString();
-        return Process.Start(info) ?? throw new XunitException("Cannot start devenv.exe");
+        return Desktop.Value.Start(info);
     }
 }
 
@@ -367,7 +388,9 @@ public abstract class McpSession : IAsyncLifetime
         for (var attempt = 0; ; attempt++)
         {
             _launched = ExpHost.Launch(solutionPath);
-            var failure = await WaitForInstance(solutionPath);
+            string? failure;
+            try { failure = await WaitForInstance(solutionPath); }
+            catch { KillInstance(); throw; }
             if (failure == null) return;
 
             KillInstance();
@@ -393,6 +416,7 @@ public abstract class McpSession : IAsyncLifetime
                 var transport = new HttpClientTransport(new HttpClientTransportOptions { Endpoint = new Uri(ExpHost.Endpoint), TransportMode = HttpTransportMode.StreamableHttp });
                 var client = await McpClient.CreateAsync(transport, cancellationToken: timeout.Token);
                 var info = await client.Call<InstanceInfo>("get_vs_info");
+                if (info.Pid != _launched?.Id) throw new XunitException("The endpoint belongs to a different VS process; the test will not control or close it.");
                 _instanceId = info.Pid;
                 if (string.Equals(info.SolutionPath, solutionPath, StringComparison.OrdinalIgnoreCase))
                 {
