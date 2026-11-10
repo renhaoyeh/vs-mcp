@@ -1561,6 +1561,128 @@
       }
     },
     {
+      "name": "editor_selection_get",
+      "title": "Read editor selection",
+      "description": "Read the active text editor caret, selected range and bounded selected text, including unsaved buffer contents. Coordinates are one-based. Data is null when no text editor is active.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxCharacters": {
+            "type": "integer",
+            "default": 20000,
+            "minimum": 1,
+            "maximum": 200000
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer"
+              },
+              "column": {
+                "type": "integer"
+              },
+              "selectionStartLine": {
+                "type": "integer"
+              },
+              "selectionStartColumn": {
+                "type": "integer"
+              },
+              "selectionEndLine": {
+                "type": "integer"
+              },
+              "selectionEndColumn": {
+                "type": "integer"
+              },
+              "selectedText": {
+                "type": "string"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "blockSelection": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "path",
+              "line",
+              "column",
+              "selectionStartLine",
+              "selectionStartColumn",
+              "selectionEndLine",
+              "selectionEndColumn",
+              "selectedText",
+              "truncated",
+              "blockSelection"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
       "name": "errors_list",
       "title": "errors_list",
       "description": "Read the Visual Studio Error List with optional severity, project and description filters. Severity is error, warning or message. Results are bounded.",

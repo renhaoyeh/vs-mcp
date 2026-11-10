@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.InteropServices;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Shell;
@@ -26,6 +27,32 @@ namespace VsMcp.Services.Documents
         private static DocumentState State(Document document, string hash = null) { ThreadHelper.ThrowIfNotOnUIThread(); return new DocumentState { Path = document.FullName, Saved = document.Saved, ReadOnly = document.ReadOnly, Sha256 = hash }; }
         public DocumentList List() { ThreadHelper.ThrowIfNotOnUIThread(); return new DocumentList { Documents = dte.Documents.Cast<Document>().Select(d => { ThreadHelper.ThrowIfNotOnUIThread(); return State(d); }).ToList() }; }
         public DocumentState Active() { ThreadHelper.ThrowIfNotOnUIThread(); return dte.ActiveDocument == null ? null : State(dte.ActiveDocument); }
+        public EditorSelection Selection(int maxCharacters)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (maxCharacters < 1 || maxCharacters > 200000) throw new ArgumentException("maxCharacters must be between 1 and 200000.");
+            var document = dte.ActiveDocument;
+            if (document == null) return null;
+            TextDocument text;
+            try { text = document.Object("TextDocument") as TextDocument; }
+            catch (COMException) { return null; }
+            if (text == null) return null;
+            var selection = text.Selection;
+            var start = selection.TopPoint; var end = selection.BottomPoint; var caret = selection.ActivePoint;
+            var blockSelection = selection.Mode == vsSelectionMode.vsSelectionModeBox;
+            var selected = ""; var truncated = false;
+            if (!blockSelection && !selection.IsEmpty)
+            {
+                var limit = start.CreateEditPoint(); limit.CharRight(maxCharacters);
+                if (limit.GreaterThan(end)) limit.MoveToPoint(end);
+                selected = start.CreateEditPoint().GetText(limit);
+                truncated = limit.LessThan(end) || selected.Length > maxCharacters;
+                if (selected.Length > maxCharacters) selected = selected.Substring(0, maxCharacters);
+            }
+            return new EditorSelection { Path = document.FullName, Line = caret.Line, Column = caret.LineCharOffset,
+                SelectionStartLine = start.Line, SelectionStartColumn = start.LineCharOffset,
+                SelectionEndLine = end.Line, SelectionEndColumn = end.LineCharOffset, SelectedText = selected, Truncated = truncated, BlockSelection = blockSelection };
+        }
         public DocumentState Open(string path)
         {
             ThreadHelper.ThrowIfNotOnUIThread();

@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **53 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **54 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -61,6 +61,7 @@ There are **53 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `without_debugging_reconcile`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Attach debugger | `debugger_attach` | Attach to a local PID after checking its absolute executable path; optional debugger engine. Requires an idle IDE. |
+| Editor selection | `editor_selection_get` | Read the active caret and bounded unsaved selection; box selections are reported explicitly. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
 | Debug context | `debugger_list_threads`, `debugger_select_thread`, `debugger_select_frame` | List threads in the current debug program and select a thread or stack frame while paused; verify selection by reading it back. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |

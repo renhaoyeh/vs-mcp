@@ -25,4 +25,17 @@ namespace VsMcp.Contracts
         [JsonRequired] public DocumentState Document { get; set; } = new DocumentState();
         [JsonRequired] public int Replacements { get; set; }
     }
+    internal sealed class EditorSelection
+    {
+        [JsonRequired] public string Path { get; set; } = "";
+        [JsonRequired] public int Line { get; set; }
+        [JsonRequired] public int Column { get; set; }
+        [JsonRequired] public int SelectionStartLine { get; set; }
+        [JsonRequired] public int SelectionStartColumn { get; set; }
+        [JsonRequired] public int SelectionEndLine { get; set; }
+        [JsonRequired] public int SelectionEndColumn { get; set; }
+        [JsonRequired] public string SelectedText { get; set; } = "";
+        [JsonRequired] public bool Truncated { get; set; }
+        [JsonRequired] public bool BlockSelection { get; set; }
+    }
 }
