@@ -6,9 +6,25 @@
 
 ## 安裝與連線
 
+使用 VS MCP 需要 Windows、Visual Studio 2026 與 .NET 10 runtime。若電腦已安裝該 runtime，就不需要重複安裝。
+
+可以將以下指令直接貼給 agent，請它協助下載、安裝與設定：
+
+```text
+請幫我在 Windows 安裝 VS MCP，並設定目前使用的 MCP 用戶端。
+
+1. 找到已安裝的 Visual Studio 2026；若有多個執行個體，先詢問我要使用哪一個。
+2. 從 https://github.com/renhaoyeh/vs-mcp/releases 的最新穩定版本下載 VsMcp.vsix。若沒有可下載的發布檔案，請明確回報，不要宣稱安裝成功。
+3. 檢查使用 VS MCP 所需的 .NET 10 runtime 是否已安裝；若缺少，從 Microsoft 官方來源安裝，已有則不重複安裝。
+4. 使用選定 Visual Studio 安裝目錄中的 VSIXInstaller 安裝 VSIX。若需要關閉 Visual Studio，請先通知我儲存工作並關閉，再繼續。
+5. 啟動選定的 Visual Studio，確認 %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe 已產生，並解析成目前帳號的實際完整路徑。
+6. 依目前 MCP 用戶端支援的設定格式，新增名為 visual-studio 的伺服器，以該完整路徑作為執行命令，保留其他既有設定。若用戶端需要重新載入或重啟，請告訴我要怎麼操作。
+7. 工具可用後，依序呼叫 list_vs_instances、以選定的 pid 與 instanceId 呼叫 connect_vs_instance，再呼叫 get_vs_info，確認連到正確的 Visual Studio。最後回報安裝版本與實際驗證結果；若驗證受阻，請說明原因。
+```
+
 從 GitHub Releases 下載 `VsMcp.vsix`。也可以手動執行 GitHub Actions 的 `Release VSIX` 工作流程，完成後下載 `VsMcp-vsix` artifact。
 
-安裝 VSIX 後先啟動 VS 一次，擴充套件會將隨附的橋接程式安裝到 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`。橋接程式需要 .NET 10 runtime。請使用自己帳號的完整執行檔路徑設定 MCP 用戶端：
+若尚未安裝 .NET 10 runtime，請先安裝，再安裝 VSIX 並啟動 VS 一次。擴充套件會將隨附的橋接程式安裝到 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`。請使用自己帳號的完整執行檔路徑設定 MCP 用戶端：
 
 ```json
 {
@@ -18,12 +34,6 @@
     }
   }
 }
-```
-
-也可以將以下指令直接貼給 agent，請它協助設定：
-
-```text
-請幫我設定目前 MCP 用戶端，新增名為 visual-studio 的伺服器。執行檔位於 Windows 的 %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe，請解析成實際完整路徑，確認檔案存在，再依此用戶端的設定格式加入，保留其他既有設定。若檔案不存在，請提醒我先安裝 VS MCP 的 VSIX 並啟動 Visual Studio 一次。
 ```
 
 先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。更新橋接程式前請先關閉橋接用戶端，再重新啟動 VS。
