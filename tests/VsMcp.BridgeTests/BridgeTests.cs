@@ -29,6 +29,7 @@ public sealed class BridgeTests
         Assert.Equal(51, tools.Count);
         Assert.Contains(tools, tool => tool.Name == "start_without_debugging");
         Assert.Contains(tools, tool => tool.Name == "without_debugging_reconcile");
+        Assert.False(tools.Single(t => t.Name == "execute_code").ProtocolTool.Annotations!.IdempotentHint);
         Assert.True(tools.Single(t => t.Name == "debugger_list_threads").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.False(tools.Single(t => t.Name == "debugger_select_frame").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.Contains(tools, tool => tool.Name == "list_vs_instances");
