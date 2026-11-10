@@ -29,12 +29,17 @@ public sealed class BridgeMultiInstanceTests
 
             var executable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VsMcp", "Bridge", "VsMcp.Bridge.exe");
             Assert.True(File.Exists(executable), "The VSIX did not deploy the bridge to its fixed client path.");
-            var builtBridge = Path.Combine(ExpHost.ProjectRoot, "src", "VsMcp.Bridge", "bin", "Release", "net10.0", "VsMcp.Bridge.dll");
+            var builtBridge = Path.Combine(ExpHost.ProjectRoot, "src", "VsMcp.Bridge", "bin", "Release", "net10.0", "win-x64", "publish", "VsMcp.Bridge.dll");
             var installedBridge = Path.Combine(Path.GetDirectoryName(executable)!, "VsMcp.Bridge.dll");
+            foreach (var runtimeFile in new[] { "hostfxr.dll", "hostpolicy.dll", "coreclr.dll" })
+                Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(executable)!, runtimeFile)), "Missing bundled runtime: " + runtimeFile);
+            using var runtimeConfig = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(installedBridge, ".runtimeconfig.json")));
+            Assert.False(runtimeConfig.RootElement.GetProperty("runtimeOptions").TryGetProperty("framework", out _));
+            Assert.True(runtimeConfig.RootElement.GetProperty("runtimeOptions").TryGetProperty("includedFrameworks", out _));
             Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(builtBridge)),
                 System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(installedBridge)));
             await using var bridge = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions { Command = executable }));
-            Assert.Equal(51, (await bridge.ListToolsAsync()).Count);
+            Assert.Equal(53, (await bridge.ListToolsAsync()).Count);
             var discovered = await bridge.Call<JsonElement>("list_vs_instances");
             var pids = discovered.GetProperty("instances").EnumerateArray().Select(instance => instance.GetProperty("pid").GetInt32()).ToArray();
             Assert.Contains(first.Id, pids);
@@ -58,7 +63,7 @@ public sealed class BridgeMultiInstanceTests
             var unavailable = await bridge.CallToolAsync("get_vs_info");
             Assert.True(unavailable.IsError);
             Assert.Equal("VS_INSTANCE_UNAVAILABLE", unavailable.StructuredContent!.Value.GetProperty("error").GetString());
-            Assert.Equal(51, (await bridge.ListToolsAsync()).Count); // The external MCP survives a closed VS.
+            Assert.Equal(53, (await bridge.ListToolsAsync()).Count); // The external MCP survives a closed VS.
             await Bind(bridge, firstEntry);
             Assert.Equal(first.Id, (await bridge.Call<InstanceInfo>("get_vs_info")).Pid);
         }

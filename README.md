@@ -6,7 +6,9 @@ Give MCP agents access to Visual Studio 2026's C++ and C# development capabiliti
 
 ## Installation and connection
 
-Using VS MCP requires Windows, Visual Studio 2026 and the .NET 10 runtime. If the runtime is already installed, you do not need to install it again.
+Using VS MCP requires Windows x64 and Visual Studio 2026. The VSIX includes the bridge's .NET runtime; no separate .NET 10 installation is required.
+
+The extension uses the connected Visual Studio installation's shared .NET assemblies and binding policy, rather than requiring a fixed assembly patch version. The stdio bridge runs separately with its bundled runtime.
 
 To have an agent download, install and configure VS MCP, paste this request:
 
@@ -15,16 +17,15 @@ Please install VS MCP and configure it for my current MCP client on Windows.
 
 1. Find the installed Visual Studio 2026 instance. If several instances are available, ask which one to use.
 2. Download VsMcp.vsix from the latest stable release at https://github.com/renhaoyeh/vs-mcp/releases. If no release asset is available, report that instead of claiming installation succeeded.
-3. Check for the .NET 10 runtime, which is required to use VS MCP. If it is missing, install it from Microsoft's official distribution; otherwise keep the existing installation.
-4. Use the selected Visual Studio installation's VSIXInstaller to install the VSIX. If Visual Studio must be closed, ask me to save my work and close it before continuing.
-5. Start the selected Visual Studio instance and confirm that %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe exists. Resolve this to the actual full path for my account.
-6. Add a server named visual-studio to my current MCP client's configuration, using that full executable path and the client's supported configuration format. Preserve other existing settings. If the client needs to reload or restart, tell me what to do.
-7. Once the tools are available, call list_vs_instances, connect_vs_instance with the selected pid and instanceId, then get_vs_info to verify the intended Visual Studio instance. Report the installed version and actual verification result; if verification is blocked, explain the blocker.
+3. Use the selected Visual Studio installation's VSIXInstaller to install the VSIX. The bridge runtime is bundled; do not install .NET separately. If Visual Studio must be closed, ask me to save my work and close it before continuing.
+4. Start the selected Visual Studio instance and confirm that %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe exists. Resolve this to the actual full path for my account.
+5. Add a server named visual-studio to my current MCP client's configuration, using that full executable path and the client's supported configuration format. Preserve other existing settings. If the client needs to reload or restart, tell me what to do.
+6. Once the tools are available, call list_vs_instances, connect_vs_instance with the selected pid and instanceId, then get_vs_info to verify the intended Visual Studio instance. Report the installed version and actual verification result; if verification is blocked, explain the blocker.
 ```
 
 Download `VsMcp.vsix` from GitHub Releases. The `Release VSIX` GitHub Actions workflow also supports manual runs; download the `VsMcp-vsix` artifact from the completed run.
 
-Install the .NET 10 runtime if it is missing, install the VSIX, then start VS once. The extension installs the bundled bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. Configure your MCP client with the full executable path for your account:
+Install the VSIX, then start VS once. The extension installs the self-contained bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. Configure your MCP client with the full executable path for your account:
 
 ```json
 {

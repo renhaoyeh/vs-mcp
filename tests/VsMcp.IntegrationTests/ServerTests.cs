@@ -14,6 +14,19 @@ public sealed class ServerTests(FixtureSession session)
     };
 
     [Fact]
+    public async Task Shared_dependencies_use_the_running_hosts_binding_policy()
+    {
+        var result = await session.Client.Call<JsonElement>("execute_code", new { code =
+            "var names = new[] { \"System.Text.Json\", \"Microsoft.Bcl.AsyncInterfaces\", \"System.Diagnostics.DiagnosticSource\", \"System.IO.Pipelines\", \"Microsoft.Extensions.Logging.Abstractions\", \"System.Text.Encodings.Web\", \"System.Collections.Immutable\", \"System.Threading.Channels\", \"Microsoft.Extensions.DependencyInjection.Abstractions\" }; " +
+            "return System.AppDomain.CurrentDomain.GetAssemblies().Where(a => names.Contains(a.GetName().Name)).Select(a => { " +
+            "var baseline = a.GetName(); baseline.Version = new System.Version(10, 0, 0, 0); " +
+            "return new { name = a.GetName().Name, identity = a.FullName, policy = System.AppDomain.CurrentDomain.ApplyPolicy(baseline.FullName) }; }).ToArray();" });
+        var assemblies = result.GetProperty("result").EnumerateArray().ToArray();
+        Assert.Contains(assemblies, a => a.GetProperty("name").GetString() == "System.Text.Json");
+        Assert.All(assemblies, a => Assert.Equal(a.GetProperty("policy").GetString(), a.GetProperty("identity").GetString()));
+    }
+
+    [Fact]
     public async Task Lists_every_tool_with_annotations()
     {
         var client = session.Client;

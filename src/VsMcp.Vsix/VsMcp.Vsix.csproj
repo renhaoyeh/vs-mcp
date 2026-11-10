@@ -53,9 +53,22 @@
     </Content>
   </ItemGroup>
 
-  <Target Name="IncludeBridgeInVsix" BeforeTargets="GetVsixSourceItems" DependsOnTargets="ResolveProjectReferences">
+  <!-- Keep the SDK's newer copies for standalone checks, but let the IDE supply its own shared assemblies. -->
+  <Target Name="ExcludeHostAssembliesFromVsix" AfterTargets="GetVsixSourceItems">
     <ItemGroup>
-      <Content Include="../VsMcp.Bridge/bin/$(Configuration)/net10.0/*.dll;../VsMcp.Bridge/bin/$(Configuration)/net10.0/*.exe;../VsMcp.Bridge/bin/$(Configuration)/net10.0/*.json">
+      <VSIXSourceItem Remove="@(VSIXSourceItem)" Condition="'%(VSIXSourceItem.VSIXSubPath)' != 'Bridge' And
+        ('%(VSIXSourceItem.Filename)' == 'System.Text.Json' Or '%(VSIXSourceItem.Filename)' == 'Microsoft.Bcl.AsyncInterfaces' Or
+         '%(VSIXSourceItem.Filename)' == 'System.Diagnostics.DiagnosticSource' Or '%(VSIXSourceItem.Filename)' == 'System.IO.Pipelines' Or
+         '%(VSIXSourceItem.Filename)' == 'Microsoft.Extensions.Logging.Abstractions' Or '%(VSIXSourceItem.Filename)' == 'System.Text.Encodings.Web' Or
+         '%(VSIXSourceItem.Filename)' == 'System.Collections.Immutable' Or '%(VSIXSourceItem.Filename)' == 'System.Threading.Channels' Or
+         '%(VSIXSourceItem.Filename)' == 'Microsoft.Extensions.DependencyInjection.Abstractions')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IncludeBridgeInVsix" BeforeTargets="GetVsixSourceItems" DependsOnTargets="ResolveProjectReferences">
+    <MSBuild Projects="../VsMcp.Bridge/VsMcp.Bridge.csproj" Targets="Publish" Properties="Configuration=$(Configuration)" />
+    <ItemGroup>
+      <Content Include="../VsMcp.Bridge/bin/$(Configuration)/net10.0/win-x64/publish/*" Exclude="../VsMcp.Bridge/bin/$(Configuration)/net10.0/win-x64/publish/*.pdb">
         <VSIXSubPath>Bridge</VSIXSubPath>
         <IncludeInVSIX>true</IncludeInVSIX>
       </Content>

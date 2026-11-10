@@ -189,7 +189,7 @@ internal static class ExpHost
 
         if (IsInstalled())
         {
-            Log("the experimental hive already has this package (same VsMcp.dll sha256); not installing it again");
+            Log("the experimental hive already has this package (matching DLL, redirects and bridge files); not installing it again");
             return;
         }
 
@@ -224,7 +224,7 @@ internal static class ExpHost
     }
 
     /// <summary>
-    /// True when an extension folder of the experimental hive holds an VsMcp.dll with the package's SHA-256, so the install
+    /// True when an extension folder holds the package's DLL, redirects and bridge files, so the install
     /// (which opens an installer window and takes half a minute) can be skipped. The running instance is verified later anyway.
     /// </summary>
     private static bool IsInstalled()
@@ -237,7 +237,20 @@ internal static class ExpHost
             .SelectMany(extensions => Directory.EnumerateFiles(extensions, "VsMcp.dll", SearchOption.AllDirectories))
             .Any(dll =>
             {
-                try { return Sha256(File.ReadAllBytes(dll)) == Identity.DllSha256; }
+                try
+                {
+                    if (Sha256(File.ReadAllBytes(dll)) != Identity.DllSha256) return false;
+                    using var archive = System.IO.Compression.ZipFile.OpenRead(Package);
+                    return archive.Entries.Where(entry => entry.Name.Length != 0 &&
+                        (entry.FullName == "VsMcp.Redirects.pkgdef" || entry.FullName.StartsWith("Bridge/", StringComparison.Ordinal)))
+                        .All(entry =>
+                        {
+                            var installed = Path.Combine(Path.GetDirectoryName(dll)!, entry.FullName);
+                            if (!File.Exists(installed)) return false;
+                            using var stream = entry.Open();
+                            return Sha256(File.ReadAllBytes(installed)) == Sha256(stream);
+                        });
+                }
                 catch (IOException) { return false; }
             });
     }

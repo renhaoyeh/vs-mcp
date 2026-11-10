@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol;
@@ -21,11 +22,22 @@ public sealed class BridgeTests
     [Fact]
     public async Task Stdio_exposes_the_stable_catalog_and_requires_explicit_binding()
     {
+        var executable = Path.GetFullPath(typeof(BridgeTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "BridgeExecutable").Value!);
+        var hostTrace = new System.Collections.Concurrent.ConcurrentQueue<string>();
         await using var client = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
-            Command = "dotnet", Arguments = [typeof(VsMcp.Bridge.Program).Assembly.Location],
+            Command = executable,
+            EnvironmentVariables = new Dictionary<string, string?>
+            {
+                ["DOTNET_ROOT"] = Path.Combine(Path.GetTempPath(), "missing-dotnet-" + Guid.NewGuid().ToString("N")),
+                ["DOTNET_ROOT_X64"] = Path.Combine(Path.GetTempPath(), "missing-dotnet-" + Guid.NewGuid().ToString("N")),
+                ["DOTNET_HOST_TRACE"] = "1",
+            },
+            StandardErrorLines = hostTrace.Enqueue,
         }));
         var tools = await client.ListToolsAsync();
+        Assert.Contains(hostTrace, line => line.Contains(Path.Combine(Path.GetDirectoryName(executable)!, "coreclr.dll"), StringComparison.OrdinalIgnoreCase));
         Assert.Equal(53, tools.Count);
         Assert.Contains(tools, tool => tool.Name == "project_unload");
         Assert.Contains(tools, tool => tool.Name == "project_reload");

@@ -28,6 +28,8 @@ namespace VsMcp
     {
         public const string PackageGuidString = "d806931e-843a-4254-ac50-9f9e48117564";
 
+        static VsMcpPackage() => HostAssemblyResolver.Register();
+
         private McpHttpServer _server;
         private VsToolProvider _tools;
         private IDisposable _registration;
