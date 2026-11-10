@@ -1,12 +1,34 @@
-﻿# VS MCP
+# VS MCP
 
 [English](README.md) | 繁體中文
 
 讓 MCP agent 直接使用 Visual Studio 2026 的 C++／C# 開發能力。MCP 伺服器在連線的 IDE 內執行，透過 Streamable HTTP 提供方案、建置、未儲存文件、偵錯、診斷、語意導覽與測試結果。隨附的 .NET stdio 橋接程式提供固定的用戶端入口，並可明確選擇要操作的 VS 執行個體。
 
+## 安裝與連線
+
+從 GitHub Releases 下載 `VsMcp.vsix`。也可以手動執行 GitHub Actions 的 `Release VSIX` 工作流程，完成後下載 `VsMcp-vsix` artifact。
+
+安裝 VSIX 後先啟動 VS 一次，擴充套件會將隨附的橋接程式安裝到 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`。橋接程式需要 .NET 10 runtime。請使用自己帳號的完整執行檔路徑設定 MCP 用戶端：
+
+```json
+{
+  "mcpServers": {
+    "visual-studio": {
+      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
+    }
+  }
+}
+```
+
+先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。更新橋接程式前請先關閉橋接用戶端，再重新啟動 VS。
+
+直接使用 HTTP 的用戶端仍可連接 `http://127.0.0.1:18770/mcp`。未設定 `VS_MCP_PORT` 時，VS 會先嘗試 18770，碰撞時選擇空閒連接埠，由橋接程式探索實際端點。啟動 VS 前設定 `VS_MCP_PORT` 則會固定連接埠，不會自動改用其他埠。伺服器只監聽 loopback，驗證 Host／Origin，目前沒有認證 token。橋接請求另會識別選定的登記資料，避免連接埠被重用時把呼叫送到另一個執行個體。
+
+`execute_code` 以使用者權限在 UI thread 執行任意程式碼，沒有 sandbox、執行逾時或 rollback。任何修改操作若遇到連線中斷，都應先檢查效果，再決定是否重試。
+
 ## 功能與工具一覽
 
-目前有 **49 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容；只顯示視窗、終端或移動游標的工具已從 0.4.0 移除。
+目前有 **51 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -75,33 +97,7 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 
 一般磁碟搜尋、建立檔案／資料夾等工作交由 agent 原有的檔案工具處理。此 MCP 專注於 IDE 狀態、未儲存內容與開發流程。
 
-## 安裝與連線
-
-從 GitHub Releases 下載 `VsMcp.vsix`。也可以手動執行 GitHub Actions 的 `Release VSIX` 工作流程，完成後下載 `VsMcp-vsix` artifact。
-
-建置需求：Windows、Visual Studio 2026 的 C#／.NET、Desktop C++ 與 extension-development 工作負載、.NET 10 SDK，以及 .NET Framework 4.7.2 targeting pack。
-
-在 Visual Studio 開啟 `VsMcp.slnx`，選擇 Release 並建置 `VsMcp.Vsix` 專案。安裝包會產生在 `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`。
-
-安裝 VSIX 後先啟動 VS 一次，擴充套件會將隨附的橋接程式安裝到 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`。橋接程式需要 .NET 10 runtime。請使用自己帳號的完整執行檔路徑設定 MCP 用戶端：
-
-```json
-{
-  "mcpServers": {
-    "visual-studio": {
-      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
-    }
-  }
-}
-```
-
-先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。更新橋接程式前請先關閉橋接用戶端，再重新啟動 VS。
-
-直接使用 HTTP 的用戶端仍可連接 `http://127.0.0.1:18770/mcp`。未設定 `VS_MCP_PORT` 時，VS 會先嘗試 18770，碰撞時選擇空閒連接埠，由橋接程式探索實際端點。啟動 VS 前設定 `VS_MCP_PORT` 則會固定連接埠，不會自動改用其他埠。伺服器只監聽 loopback，驗證 Host／Origin，目前沒有認證 token。橋接請求另會識別選定的登記資料，避免連接埠被重用時把呼叫送到另一個執行個體。
-
-`execute_code` 以使用者權限在 UI thread 執行任意程式碼，沒有 sandbox、執行逾時或 rollback。任何修改操作若遇到連線中斷，都應先檢查效果，再決定是否重試。
-
-## 架構與驗證
+## 架構
 
 | 目錄 | 職責 |
 | --- | --- |
@@ -110,8 +106,6 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 | `Contracts/` | 共用的型別化結果與 JSON 資料契約。 |
 | `Services/` | 依方案、建置、文件、偵錯、語言導覽及測試拆分的服務。 |
 | `Infrastructure/` | VSTest 子程序、參數處理、輸出擷取與 Windows process job。 |
-
-0.4.0 已安裝至 VS 2026 Community 實驗執行個體驗證：**45 項整合測試、11 項橋接測試、9 項單元測試全部通過**，另通過 HTTP harness 與 live 工具 schema 比對。C++／C# 的建置、文件、測試及偵錯，以及透過 stdio 控制兩個自動分配連接埠的 VS 執行個體皆有實測；C++ 參考查詢仍受上述 provider 能力限制。
 
 更完整的架構、依賴版本、測試指令與實驗執行個體流程請見 [DEVELOPMENT.md](DEVELOPMENT.md)。
 

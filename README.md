@@ -4,9 +4,31 @@ English | [繁體中文](README.zh-TW.md)
 
 Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. A bundled .NET stdio bridge provides a fixed client entry point and explicit selection between running VS instances.
 
+## Installation and connection
+
+Download `VsMcp.vsix` from GitHub Releases. The `Release VSIX` GitHub Actions workflow also supports manual runs; download the `VsMcp-vsix` artifact from the completed run.
+
+Install the VSIX and start VS once. The extension installs the bundled bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. The bridge requires the .NET 10 runtime. Configure your MCP client with the full executable path for your account:
+
+```json
+{
+  "mcpServers": {
+    "visual-studio": {
+      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
+    }
+  }
+}
+```
+
+Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying. Close bridge clients before installing an updated bridge, then restart VS.
+
+Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_PORT`, VS first tries port 18770 and chooses a free port on collision; the bridge discovers the assigned endpoint. Setting `VS_MCP_PORT` before starting VS fixes the port and disables fallback. The server listens only on loopback and validates Host/Origin; it currently has no authentication token. Bridge requests additionally identify the selected registration so a reused port cannot redirect a call to another instance.
+
+`execute_code` runs arbitrary code with your permissions on the UI thread, without a sandbox, execution timeout or rollback. If a modifying operation is interrupted by a disconnect, inspect its effects before deciding whether to retry.
+
 ## Tools
 
-There are **49 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
+There are **51 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -75,33 +97,7 @@ Test cancellation terminates only that run's runner and owned test-host process 
 
 Use the agent's filesystem tools for ordinary disk searches and file/folder creation. This MCP focuses on IDE state, unsaved content and development workflows.
 
-## Installation and connection
-
-Download `VsMcp.vsix` from GitHub Releases. The `Release VSIX` GitHub Actions workflow also supports manual runs; download the `VsMcp-vsix` artifact from the completed run.
-
-Build requirements: Windows, Visual Studio 2026 with C#/.NET, Desktop C++ and extension-development workloads, the .NET 10 SDK and the .NET Framework 4.7.2 targeting pack.
-
-Open `VsMcp.slnx` in Visual Studio, select Release and build the `VsMcp.Vsix` project. The package is written to `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`.
-
-Install the VSIX and start VS once. The extension installs the bundled bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. The bridge requires the .NET 10 runtime. Configure your MCP client with the full executable path for your account:
-
-```json
-{
-  "mcpServers": {
-    "visual-studio": {
-      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
-    }
-  }
-}
-```
-
-Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying. Close bridge clients before installing an updated bridge, then restart VS.
-
-Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_PORT`, VS first tries port 18770 and chooses a free port on collision; the bridge discovers the assigned endpoint. Setting `VS_MCP_PORT` before starting VS fixes the port and disables fallback. The server listens only on loopback and validates Host/Origin; it currently has no authentication token. Bridge requests additionally identify the selected registration so a reused port cannot redirect a call to another instance.
-
-`execute_code` runs arbitrary code with your permissions on the UI thread, without a sandbox, execution timeout or rollback. If a modifying operation is interrupted by a disconnect, inspect its effects before deciding whether to retry.
-
-## Architecture and validation
+## Architecture
 
 | Directory under `src/VsMcp.Vsix` | Responsibility |
 | --- | --- |
@@ -110,8 +106,6 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 | `Contracts/` | Shared typed results and JSON contracts. |
 | `Services/` | Services for solutions, builds, documents, debugging, language navigation and tests. |
 | `Infrastructure/` | VSTest processes, argument handling, output capture and Windows process jobs. |
-
-Version 0.4.0 was installed and verified in the VS 2026 Community experimental instance: **45 integration tests, 11 bridge tests and 9 unit tests passed**, along with the HTTP harness and live tool schema comparison. C++ and C# builds, documents, tests and debugging were exercised, as was stdio control of two VS instances with automatic ports; C++ references remain subject to the provider limitations above.
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for architecture details, dependency versions, test commands and experimental-instance workflows.
 
