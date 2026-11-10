@@ -69,7 +69,7 @@
 
 完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供。[src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) 保存產生的 IDE 工具目錄，讓橋接程式在 VS 尚未啟動時仍能提供固定的工具定義；連接時會核對實際 IDE 的工具目錄。
 
-`start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.without_debugging_request` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
+`start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.withoutDebuggingRequest` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
 
 ## C++／C# 支援範圍
 
@@ -93,7 +93,7 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 | --- | --- | --- |
 | 建置 | 回傳實際結果，或等待逾時後回傳 `running`；逾時不會取消建置。 | 呼叫 `get_build_status`，直到取得最終狀態。 |
 | 偵錯啟停、暫停、繼續、逐步 | 指令／API 請求已接受，不保證目標程序已完成狀態切換。 | 用 `get_debug_status` 檢查 mode、請求狀態及程序資料；不要盲目重送。 |
-| Ctrl+F5 | `started` 表示已觀察到目標程序；`unconfirmed` 表示尚未確認。 | 查閱 `get_debug_status.without_debugging_request`；未確認前不要重試。 |
+| Ctrl+F5 | `started` 表示已觀察到目標程序；`unconfirmed` 表示尚未確認。 | 查閱 `get_debug_status.withoutDebuggingRequest`；未確認前不要重試。 |
 | 文件修改 | 編輯器 buffer 已修改，通常尚未儲存到磁碟。 | 檢查回傳文件狀態；需要落盤時呼叫 `document_save`，或在覆寫時明確指定 `save`。 |
 | 語意導覽 | 回傳位置資料，或明確回報不支援／查詢失敗。 | 使用檔案及行列結果；不需從畫面猜測查詢是否成功。 |
 | 測試 | 回傳 run ID 與目前狀態；結束後提供實際 TRX 結果。 | 用 `test_status` 收集結果；`noTests` 不代表通過，runner 錯誤或缺少報告也不會回報成功。 |

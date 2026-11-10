@@ -13,7 +13,7 @@ namespace VsMcp.Services.Debugging
         public void RequireId(string requestId)
         {
             if (!string.Equals(requestId, Id, StringComparison.Ordinal))
-                throw new ArgumentException("Request ID is stale or unknown. Read get_debug_status.without_debugging_request.");
+                throw new ArgumentException("Request ID is stale or unknown. Read get_debug_status.withoutDebuggingRequest.");
         }
         public void Abandon(bool acknowledgeLaunchMayStillOccur)
         {

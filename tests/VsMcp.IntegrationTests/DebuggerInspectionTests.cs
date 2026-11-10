@@ -45,7 +45,9 @@ internal static class DebuggerInspection
             var selectedThread = await client.Call<JsonElement>("debugger_select_thread", new { contextId, processId, threadId = other.GetProperty("threadId").GetInt32() });
             Assert.True(selectedThread.GetProperty("data").GetProperty("confirmed").GetBoolean());
             await client.Call<JsonElement>("debugger_select_thread", new { contextId, processId, threadId });
-            Assert.Contains("Thread ID", await client.Fail("debugger_select_thread", new { contextId, processId, threadId = -1 }));
+            var invalidThread = await client.Fail("debugger_select_thread", new { contextId, processId, threadId = -1 });
+            Assert.Contains("INVALID_ARGUMENT:", invalidThread);
+            Assert.Contains("Thread ID", invalidThread);
             Assert.Contains("stale", await client.Fail("debugger_select_frame", new { contextId = "stale", processId, threadId, frameIndex = 1 }));
             Assert.Contains("outside", await client.Fail("debugger_select_frame", new { contextId, processId, threadId, frameIndex = 1000 }));
             // The second frame is Main, where callerValue is in scope instead of counter.
@@ -66,6 +68,8 @@ internal static class DebuggerInspection
             }
             Assert.Equal("42", value.GetProperty("data").GetProperty("value").GetString());
             Assert.Contains("stale", await client.Fail("debugger_select_thread", new { contextId, processId, threadId }));
+            // The fixture breakpoint has served its purpose; do not let it interrupt the resume check again.
+            await client.Call<JsonElement>("breakpoint_enable", new { path, line = breakpointLine, enabled = false });
             await client.Call<JsonElement>("debugger_continue"); await Wait(client, "dbgRunMode");
             ExpHost.Log("debugger inspection: continued " + project);
             await client.Call<JsonElement>("debugger_break"); await Wait(client, "dbgBreakMode");

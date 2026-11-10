@@ -60,12 +60,19 @@ namespace VsMcp.Services.Debugging
                 var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 try
                 {
-                    var outputs = project.ConfigurationManager.ActiveConfiguration.OutputGroups.Item("Built").FileURLs as Array;
+                    var configuration = project.ConfigurationManager.ActiveConfiguration;
+                    var outputs = configuration.OutputGroups.Item("Built").FileURLs as Array;
                     if (outputs != null) foreach (var output in outputs)
                     {
                         var value = Convert.ToString(output);
                         var path = Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.IsFile ? uri.LocalPath : Path.GetFullPath(value);
-                        if (string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase)) path = Path.ChangeExtension(path, ".exe");
+                        if (string.Equals(Path.GetExtension(path), ".dll", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // SDK-style Built output groups can point to obj; the apphost runs from OutputPath.
+                            var outputPath = Convert.ToString(configuration.Properties.Item("OutputPath").Value);
+                            if (string.IsNullOrWhiteSpace(outputPath)) throw new InvalidOperationException("The active configuration has no OutputPath.");
+                            path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project.FullName), outputPath, Path.ChangeExtension(Path.GetFileName(path), ".exe")));
+                        }
                         if (string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase)) paths.Add(path);
                     }
                 }

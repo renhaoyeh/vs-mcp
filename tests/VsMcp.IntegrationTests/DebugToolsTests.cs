@@ -9,7 +9,6 @@ namespace VsMcp.IntegrationTests;
 [Collection("Debug")]
 public sealed class DebugToolsTests(DebugSession session)
 {
-
     private sealed record PhaseInfo(string? Phase);
 
     private sealed record ProcessInfo(int Pid, string? Path);
@@ -53,25 +52,42 @@ public sealed class DebugToolsTests(DebugSession session)
         {
             var status = await client.Call<System.Text.Json.JsonElement>("get_debug_status", new { waitSeconds = 0 });
             Assert.Equal("dbgDesignMode", status.GetProperty("mode").GetString());
-            launch = status.GetProperty("without_debugging_request");
+            launch = status.GetProperty("withoutDebuggingRequest");
             if (launch.GetProperty("status").GetString() == "started") break;
             await Task.Delay(250);
         } while (DateTime.UtcNow < deadline);
-        Assert.Equal("started", launch.GetProperty("status").GetString());
-        var requestId = launch.GetProperty("request_id").GetString();
-        Assert.Contains("stale", await client.Fail("without_debugging_reconcile", new { requestId = "stale" }));
-        Assert.Contains("acknowledge", await client.Fail("without_debugging_reconcile", new { requestId, abandonTracking = true }));
-        var reconciled = await client.Call<System.Text.Json.JsonElement>("without_debugging_reconcile", new { requestId });
-        Assert.Equal("started", reconciled.GetProperty("status").GetString());
-        Assert.Equal(requestId, reconciled.GetProperty("request_id").GetString());
-        Assert.Equal(before.SolutionConfiguration, launch.GetProperty("solution_configuration").GetString());
-        Assert.Equal(before.Platform, launch.GetProperty("platform").GetString());
-        foreach (var item in launch.GetProperty("processes").EnumerateArray())
+        Assert.True(launch.GetProperty("status").GetString() == "started", launch.ToString());
+        try
         {
-            using var process = System.Diagnostics.Process.GetProcessById(item.GetProperty("pid").GetInt32());
-            Assert.Equal(item.GetProperty("path").GetString(), process.MainModule!.FileName, ignoreCase: true);
-            process.Kill();
-            await process.WaitForExitAsync();
+            var requestId = launch.GetProperty("requestId").GetString();
+            var stale = await client.Fail("without_debugging_reconcile", new { requestId = "stale" });
+            Assert.Contains("INVALID_ARGUMENT:", stale);
+            Assert.Contains("stale", stale);
+            Assert.Contains("acknowledge", await client.Fail("without_debugging_reconcile", new { requestId, abandonTracking = true }));
+            var reconciled = await client.Call<System.Text.Json.JsonElement>("without_debugging_reconcile", new { requestId });
+            Assert.Equal("started", reconciled.GetProperty("status").GetString());
+            Assert.Equal(requestId, reconciled.GetProperty("requestId").GetString());
+            Assert.Equal(before.SolutionConfiguration, launch.GetProperty("solutionConfiguration").GetString());
+            Assert.Equal(before.Platform, launch.GetProperty("platform").GetString());
+            foreach (var item in launch.GetProperty("processes").EnumerateArray())
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(item.GetProperty("pid").GetInt32());
+                Assert.Equal(item.GetProperty("path").GetString(), process.MainModule!.FileName, ignoreCase: true);
+            }
+        }
+        finally
+        {
+            foreach (var item in launch.GetProperty("processes").EnumerateArray())
+            {
+                try
+                {
+                    using var process = System.Diagnostics.Process.GetProcessById(item.GetProperty("pid").GetInt32());
+                    if (!string.Equals(item.GetProperty("path").GetString(), process.MainModule?.FileName, StringComparison.OrdinalIgnoreCase)) continue;
+                    process.Kill();
+                    await process.WaitForExitAsync();
+                }
+                catch (ArgumentException) { /* the test process already exited */ }
+            }
         }
     }
 

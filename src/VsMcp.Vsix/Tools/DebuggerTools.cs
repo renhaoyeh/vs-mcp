@@ -68,10 +68,11 @@ namespace VsMcp.Tools
             ThreadHelper.ThrowIfNotOnUIThread();
             Paused();
             ContextId();
-            vs.Debug().BreakContext.Require(contextId);
+            try { vs.Debug().BreakContext.Require(contextId); }
+            catch (ArgumentException error) { throw new McpToolException(ToolErrorCode.InvalidArgument, error.Message); }
             if (vs.Dte.Debugger.CurrentProcess?.ProcessID != processId ||
                 (threadId.HasValue && vs.Dte.Debugger.CurrentThread?.ID != threadId.Value))
-                throw new ArgumentException("Current debug process/thread changed; read debugger_list_threads or debugger_get_callstack again.");
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Current debug process/thread changed; read debugger_list_threads or debugger_get_callstack again.");
         }
 
         private static bool SameComObject(object left, object right)
@@ -117,7 +118,7 @@ namespace VsMcp.Tools
             RequireContext(contextId, processId);
             var debugger = vs.Dte.Debugger;
             var matches = debugger.CurrentProgram.Threads.Cast<EnvDTE.Thread>().Where(t => { ThreadHelper.ThrowIfNotOnUIThread(); return t.ID == threadId; }).ToArray();
-            if (matches.Length != 1) throw new ArgumentException("Thread ID must match exactly one thread in the current debug program.");
+            if (matches.Length != 1) throw new McpToolException(ToolErrorCode.InvalidArgument, "Thread ID must match exactly one thread in the current debug program.");
             debugger.CurrentThread = matches[0];
             RequireContext(contextId, processId, threadId);
             if (!SameComObject(debugger.CurrentThread, matches[0])) throw new InvalidOperationException("Thread selection was not confirmed. Read debugger_list_threads before retrying.");
@@ -125,19 +126,22 @@ namespace VsMcp.Tools
         }
 
         [McpServerTool(Name = "debugger_select_frame", Title = "Select debugger stack frame", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
-        [Description("Select a one-based frameIndex from debugger_get_callstack in the same paused context, process and thread. Stale context/process/thread and invalid indices fail before selection. Reads back COM frame identity to confirm the change. Never resumes execution or changes the instruction pointer; later locals/evaluation use the selected frame. Selection availability depends on the debug engine.")]
+        [Description("Select a one-based frameIndex from debugger_get_callstack in the same paused context, process and thread. Stale context/process/thread and invalid indices fail before selection. Reads back frame depth in the same paused context to confirm the change. Never resumes execution or changes the instruction pointer; later locals/evaluation use the selected frame. Selection availability depends on the debug engine.")]
         public async Task<CallToolResult> SelectFrameAsync(string contextId, int processId, int threadId, [Range(1, 1000)] int frameIndex, CancellationToken cancellationToken = default)
         {
-            if (frameIndex < 1 || frameIndex > 1000) throw new ArgumentOutOfRangeException(nameof(frameIndex));
+            if (frameIndex < 1 || frameIndex > 1000) throw new McpToolException(ToolErrorCode.InvalidArgument, "Frame index must be between 1 and 1000.");
             await vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             RequireContext(contextId, processId, threadId);
             var debugger = vs.Dte.Debugger;
             var target = debugger.CurrentThread.StackFrames.Cast<StackFrame>().Skip(frameIndex - 1).FirstOrDefault();
-            if (target == null) throw new ArgumentException("Frame index is outside the current call stack.");
+            if (target == null) throw new McpToolException(ToolErrorCode.InvalidArgument, "Frame index is outside the current call stack.");
+            var expected = target as EnvDTE90a.StackFrame2 ?? throw new McpToolException(ToolErrorCode.NotSupported, "This debug engine does not expose stack frame depth.");
+            var depth = expected.Depth;
             debugger.CurrentStackFrame = target;
             RequireContext(contextId, processId, threadId);
             var actual = debugger.CurrentStackFrame;
-            if (!SameComObject(actual, target)) throw new InvalidOperationException("Frame selection was not confirmed. Read debugger_get_callstack before retrying.");
+            if (!(actual is EnvDTE90a.StackFrame2 selected) || selected.Depth != depth)
+                throw new McpToolException(ToolErrorCode.ExecutionError, "Frame selection was not confirmed. Read debugger_get_callstack before retrying.");
             return Result(new { confirmed = true, contextId, processId, threadId, frameIndex,
                 actual.FunctionName, actual.Module, actual.Language });
         }
@@ -202,9 +206,11 @@ namespace VsMcp.Tools
             var processId = debugger.CurrentProcess.ProcessID;
             var threadId = debugger.CurrentThread.ID;
             var frames = debugger.CurrentThread.StackFrames;
+            var current = debugger.CurrentStackFrame as EnvDTE90a.StackFrame2 ?? throw new McpToolException(ToolErrorCode.NotSupported, "This debug engine does not expose stack frame depth.");
+            var currentDepth = current.Depth;
             var items = frames.Cast<StackFrame>().Take(maxFrames).Select((f, index) => {
                 ThreadHelper.ThrowIfNotOnUIThread();
-                return new { frameIndex = index + 1, isCurrent = SameComObject(f, debugger.CurrentStackFrame), f.FunctionName, f.Module, f.Language };
+                return new { frameIndex = index + 1, isCurrent = f is EnvDTE90a.StackFrame2 frame && frame.Depth == currentDepth, f.FunctionName, f.Module, f.Language };
             }).ToArray();
             RequireContext(contextId, processId, threadId);
             return Result(new { contextId, processId, threadId, frames = items, truncated = frames.Count > maxFrames });
