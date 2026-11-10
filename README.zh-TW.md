@@ -45,7 +45,7 @@
 
 ## 功能與工具一覽
 
-目前有 **54 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **55 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -62,6 +62,7 @@
 | 偵錯執行控制 | `debugger_break`、`debugger_continue`、`debugger_step_into`、`debugger_step_over`、`debugger_step_out` | 暫停、繼續與逐步執行；檢查目前偵錯模式後呼叫 debugger API。 |
 | 附加偵錯工具 | `debugger_attach` | 驗證執行檔絕對路徑後附加至本機 PID，可指定偵錯引擎；需要閒置的 IDE。 |
 | 編輯器選取 | `editor_selection_get` | 讀取游標與有限長度的未儲存選取文字，明確回報方塊選取。 |
+| 專案項目 | `project_items` | 讀取專案 unique name、項目階層與實體路徑，最多 2,000 項、64 層。 |
 | 斷點 | `debugger_add_breakpoint`、`debugger_list_breakpoints`、`breakpoint_enable`、`debugger_remove_breakpoint` | 新增檔案／行號斷點，可指定條件；列出、啟停及移除斷點。是否繫結仍取決於已載入的符號。 |
 | 偵錯環境選取 | `debugger_list_threads`、`debugger_select_thread`、`debugger_select_frame` | 列舉目前偵錯程式的執行緒；暫停時切換執行緒或堆疊 frame，並讀回確認選取結果。 |
 | 偵錯資料 | `debugger_get_locals`、`debugger_get_callstack`、`debugger_evaluate` | 暫停時讀取目前 frame 的區域變數、目前執行緒的呼叫堆疊，以及運算式結果；結果數量有上限。 |

@@ -2807,6 +2807,122 @@
       "outputSchema": null
     },
     {
+      "name": "project_items",
+      "title": "Get project items",
+      "description": "Enumerate one project's Visual Studio item hierarchy, including folders and physical file paths when available. Requires an exact project name or unique name; ambiguous and missing projects fail. Results are bounded to 2000 items and report truncation. Read-only.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "description": "Exact project name or unique name (relative project path).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "project": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "items": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "kind": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "filePath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
       "name": "project_reload",
       "title": "Reload unloaded project",
       "description": "Reload one unloaded project by exact name or unique name, like Reload Project in Solution Explorer. Requires an idle IDE and saved documents and solution. Missing, ambiguous or already loaded projects fail. Does not reload a loaded project or change configuration. Inspect state before retrying an interrupted call.",
