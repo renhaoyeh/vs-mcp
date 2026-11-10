@@ -35,6 +35,27 @@ internal static class DebuggerInspection
             Assert.Contains(locals.GetProperty("data").GetProperty("items").EnumerateArray(), e => e.GetProperty("name").GetString() == "counter");
             var stack = await client.Call<JsonElement>("debugger_get_callstack");
             Assert.NotEmpty(stack.GetProperty("data").GetProperty("frames").EnumerateArray());
+            var frames = stack.GetProperty("data");
+            var contextId = frames.GetProperty("contextId").GetString();
+            var processId = frames.GetProperty("processId").GetInt32();
+            var threadId = frames.GetProperty("threadId").GetInt32();
+            var threads = (await client.Call<JsonElement>("debugger_list_threads")).GetProperty("data");
+            Assert.Equal(contextId, threads.GetProperty("contextId").GetString());
+            var other = threads.GetProperty("items").EnumerateArray().First(t => !t.GetProperty("isCurrent").GetBoolean() && (project != "Debuggee" || t.GetProperty("name").GetString() == "Worker"));
+            var selectedThread = await client.Call<JsonElement>("debugger_select_thread", new { contextId, processId, threadId = other.GetProperty("threadId").GetInt32() });
+            Assert.True(selectedThread.GetProperty("data").GetProperty("confirmed").GetBoolean());
+            await client.Call<JsonElement>("debugger_select_thread", new { contextId, processId, threadId });
+            Assert.Contains("Thread ID", await client.Fail("debugger_select_thread", new { contextId, processId, threadId = -1 }));
+            Assert.Contains("stale", await client.Fail("debugger_select_frame", new { contextId = "stale", processId, threadId, frameIndex = 1 }));
+            Assert.Contains("outside", await client.Fail("debugger_select_frame", new { contextId, processId, threadId, frameIndex = 1000 }));
+            // The second frame is Main, where callerValue is in scope instead of counter.
+            var selected = await client.Call<JsonElement>("debugger_select_frame", new { contextId, processId, threadId, frameIndex = 2 });
+            Assert.True(selected.GetProperty("data").GetProperty("confirmed").GetBoolean());
+            var caller = await client.Call<JsonElement>("debugger_evaluate", new { expression = "callerValue" });
+            Assert.Equal("17", caller.GetProperty("data").GetProperty("value").GetString());
+            await client.Call<JsonElement>("debugger_select_frame", new { contextId, processId, threadId, frameIndex = 1 });
+            var selectedStack = (await client.Call<JsonElement>("debugger_get_callstack")).GetProperty("data");
+            Assert.True(selectedStack.GetProperty("frames")[0].GetProperty("isCurrent").GetBoolean());
             await client.Call<JsonElement>("debugger_step_over");
             // Step dispatch can briefly leave break mode unchanged; wait for the evaluated value to change.
             for (int i = 0; i < 40; i++)
@@ -44,6 +65,7 @@ internal static class DebuggerInspection
                 if (value.GetProperty("data").GetProperty("value").GetString() == "42") break;
             }
             Assert.Equal("42", value.GetProperty("data").GetProperty("value").GetString());
+            Assert.Contains("stale", await client.Fail("debugger_select_thread", new { contextId, processId, threadId }));
             await client.Call<JsonElement>("debugger_continue"); await Wait(client, "dbgRunMode");
             ExpHost.Log("debugger inspection: continued " + project);
             await client.Call<JsonElement>("debugger_break"); await Wait(client, "dbgBreakMode");

@@ -6,7 +6,7 @@ Give MCP agents access to Visual Studio 2026's C++ and C# development capabiliti
 
 ## Tools
 
-There are **46 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
+There are **49 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns. Tools that only displayed windows or terminals, or moved the cursor, were removed in 0.4.0.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ There are **46 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `without_debugging_reconcile`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
+| Debug context | `debugger_list_threads`, `debugger_select_thread`, `debugger_select_frame` | List threads in the current debug program and select a thread or stack frame while paused; verify selection by reading it back. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |
 | Diagnostics | `errors_list`, `output_list_panes`, `output_read` | Filter Error List by severity, project and text; list Output panes and read a bounded tail of their contents. |
 | Semantic navigation | `goto_definition`, `find_references` | Return definition/reference file paths, start/end positions and truncation state. Language limitations are listed below. |
@@ -56,6 +57,8 @@ Test tools run already-built binaries. They do not build, restore or synchronize
 | Document edit | The editor buffer changed and usually has not been saved to disk. | Check document state; call `document_save` or explicitly request `save` when writing if persistence is needed. |
 | Semantic navigation | Returns locations or an explicit unsupported/query-failure result. | Use the returned paths and positions. |
 | Tests | Returns a run ID and current status; completed runs include actual TRX results. | Collect results with `test_status`; `noTests` is not a pass, and runner errors or missing reports are not reported as success. |
+
+`debugger_list_threads` and `debugger_get_callstack` return a `contextId` and `processId`; call stacks also return `threadId` and one-based `frameIndex`. Pass those values to `debugger_select_thread` or `debugger_select_frame`. Tokens expire on continue, step, debugger mode changes or a different debug program. Switching threads requires a fresh call stack before choosing a frame. Selections do not resume execution, move the instruction pointer, freeze threads or switch debug processes/programs. Locals and evaluation use the selected frame; thread/frame availability depends on the engine.
 
 ## Agent workflows
 

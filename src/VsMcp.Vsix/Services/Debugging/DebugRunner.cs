@@ -26,6 +26,7 @@ namespace VsMcp.Services.Debugging
         private readonly JoinableTaskFactory _factory;
         private Launch _lastStop;
         private int _sessionGeneration;
+        public DebugBreakContext BreakContext { get; } = new DebugBreakContext();
 
         private static readonly JsonSerializer ModeSerializer = JsonSerializer.Create(new JsonSerializerSettings
         {
@@ -68,14 +69,15 @@ namespace VsMcp.Services.Debugging
             _factory = factory;
             // Retain the COM event source for the lifetime of the provider.
             _events = dte.Events.DebuggerEvents;
-            _events.OnEnterRunMode += reason => Observe(DebugPhase.Running);
+            _events.OnEnterRunMode += reason => { BreakContext.Invalidate(); Observe(DebugPhase.Running); };
             _events.OnEnterBreakMode += OnBreak;
-            _events.OnEnterDesignMode += reason => Observe(DebugPhase.Ended);
+            _events.OnEnterDesignMode += reason => { BreakContext.Invalidate(); Observe(DebugPhase.Ended); };
         }
 
         private void OnBreak(dbgEventReason reason, ref dbgExecutionAction action)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+            BreakContext.Invalidate();
             Observe(DebugPhase.Break);
         }
         private void Observe(DebugPhase phase)

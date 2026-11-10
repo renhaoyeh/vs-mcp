@@ -6,7 +6,7 @@
 
 ## 功能與工具一覽
 
-目前有 **46 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容；只顯示視窗、終端或移動游標的工具已從 0.4.0 移除。
+目前有 **49 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容；只顯示視窗、終端或移動游標的工具已從 0.4.0 移除。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -20,6 +20,7 @@
 | 偵錯啟停與狀態 | `start_debugging`、`start_without_debugging`、`without_debugging_reconcile`、`stop_debugging`、`get_debug_status` | 啟停目前啟動專案，讀取 debugger mode、程序 PID／路徑及請求狀態；不會自行切換啟動專案或組態。 |
 | 偵錯執行控制 | `debugger_break`、`debugger_continue`、`debugger_step_into`、`debugger_step_over`、`debugger_step_out` | 暫停、繼續與逐步執行；檢查目前偵錯模式後呼叫 debugger API。 |
 | 斷點 | `debugger_add_breakpoint`、`debugger_list_breakpoints`、`breakpoint_enable`、`debugger_remove_breakpoint` | 新增檔案／行號斷點，可指定條件；列出、啟停及移除斷點。是否繫結仍取決於已載入的符號。 |
+| 偵錯環境選取 | `debugger_list_threads`、`debugger_select_thread`、`debugger_select_frame` | 列舉目前偵錯程式的執行緒；暫停時切換執行緒或堆疊 frame，並讀回確認選取結果。 |
 | 偵錯資料 | `debugger_get_locals`、`debugger_get_callstack`、`debugger_evaluate` | 暫停時讀取目前 frame 的區域變數、目前執行緒的呼叫堆疊，以及運算式結果；結果數量有上限。 |
 | 診斷 | `errors_list`、`output_list_panes`、`output_read` | 依嚴重度、專案與文字篩選 Error List；列出 Output panes 並讀取有長度上限的尾端內容。 |
 | 語意導覽 | `goto_definition`、`find_references` | 回傳符號定義／參考的檔案、起訖行列與截斷狀態；各語言的支援限制見下表。 |
@@ -56,6 +57,8 @@ C++ 導覽使用該文件在 VS 中的目前專案 context。導覽的 `project`
 | 文件修改 | 編輯器 buffer 已修改，通常尚未儲存到磁碟。 | 檢查回傳文件狀態；需要落盤時呼叫 `document_save`，或在覆寫時明確指定 `save`。 |
 | 語意導覽 | 回傳位置資料，或明確回報不支援／查詢失敗。 | 使用檔案及行列結果；不需從畫面猜測查詢是否成功。 |
 | 測試 | 回傳 run ID 與目前狀態；結束後提供實際 TRX 結果。 | 用 `test_status` 收集結果；`noTests` 不代表通過，runner 錯誤或缺少報告也不會回報成功。 |
+
+`debugger_list_threads` 與 `debugger_get_callstack` 回傳 `contextId`、`processId`；call stack 另含 `threadId` 與從 1 開始的 `frameIndex`。選取工具要求帶入這些值；繼續、逐步執行、偵錯模式變更或切換偵錯 program 後，舊 token 失效。切換執行緒後，先重新取得 call stack 再選 frame。選取不會繼續執行、移動指令指標、凍結執行緒或切換偵錯程序／program；後續 locals 與運算式求值使用選取的 frame，支援程度取決於偵錯引擎。
 
 ## Agent 操作流程
 

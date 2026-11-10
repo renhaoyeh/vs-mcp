@@ -455,7 +455,7 @@
     {
       "name": "debugger_get_callstack",
       "title": "debugger_get_callstack",
-      "description": "Read bounded stack frames from the current thread of a paused debug session.",
+      "description": "Read bounded stack frames from the current thread of a paused debug session, with one-based frameIndex, isCurrent, contextId, processId and threadId for safe frame selection.",
       "readOnly": true,
       "destructive": false,
       "idempotent": true,
@@ -505,6 +505,27 @@
       "outputSchema": null
     },
     {
+      "name": "debugger_list_threads",
+      "title": "List debugger threads",
+      "description": "List bounded threads in the current debug program while paused, with processId, threadId, name, isCurrent and contextId. Does not switch processes/programs, freeze threads or resume execution. contextId expires on continue/step or debugger mode changes; pass it to selection tools. Engine-dependent thread enumeration failures are reported, never replaced with OS process threads.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxThreads": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
       "name": "debugger_remove_breakpoint",
       "title": "debugger_remove_breakpoint",
       "description": "Delete all top-level breakpoints at an exact absolute file path and line. Fails if none match.",
@@ -525,6 +546,70 @@
         "required": [
           "path",
           "line"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_select_frame",
+      "title": "Select debugger stack frame",
+      "description": "Select a one-based frameIndex from debugger_get_callstack in the same paused context, process and thread. Stale context/process/thread and invalid indices fail before selection. Reads back COM frame identity to confirm the change. Never resumes execution or changes the instruction pointer; later locals/evaluation use the selected frame. Selection availability depends on the debug engine.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          },
+          "frameIndex": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "contextId",
+          "processId",
+          "threadId",
+          "frameIndex"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_select_thread",
+      "title": "Select debugger thread",
+      "description": "Select an exact thread ID in the current paused debug program, using processId and contextId from debugger_list_threads. Never attaches, switches debug processes/programs, freezes threads or resumes execution. Stale contexts and unknown/ambiguous threads fail before changing selection. Reads back the selected thread to confirm the change. Read debugger_get_callstack after switching threads before selecting a frame.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contextId",
+          "processId",
+          "threadId"
         ]
       },
       "outputSchema": null

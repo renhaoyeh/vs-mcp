@@ -33,4 +33,18 @@ public sealed class DebugLifecycleTests
         Assert.Equal("started", request.Status);
         Assert.False(request.IsPending);
     }
+
+    [Fact]
+    public void Every_resume_step_and_new_pause_invalidates_previous_selection_tokens()
+    {
+        var context = new DebugBreakContext();
+        var paused = context.Id;
+        context.Require(paused);
+        context.Invalidate();
+        Assert.Throws<ArgumentException>(() => context.Require(paused));
+        var resumed = context.Id;
+        context.Invalidate();
+        Assert.Throws<ArgumentException>(() => context.Require(resumed));
+        context.Require(context.Id);
+    }
 }

@@ -76,6 +76,8 @@ Coverage includes solution/configuration queries; dependency-aware builds, failu
 
 Never put a solution argument after `devenv.exe /log`; it can be interpreted as the log output filename. Use `devenv.exe <solution> /rootsuffix Exp /log`.
 
+The Ctrl+F5 reconciliation and debugger thread/frame selection changes were validated locally with 13 unit tests, 11 bridge tests, the protocol harness, the 49-tool SDK catalog check and a Release VSIX build. Both updated C# and C++ debug fixtures compiled. Experimental-hive integration was attempted on 2026-11-10 but failed during fixture initialization: VS reported `SetSite failed for package [VsMcpPackage]` (`0x80070002`) and no MCP endpoint appeared within 120 seconds. Thread/frame selection and reconciliation therefore remain unverified in a live IDE in this environment; this is not an integration pass.
+
 ## Dependencies
 
 The extension targets net472 using Microsoft.VisualStudio.SDK 17.14.40265, Microsoft.VSSDK.BuildTools 18.6.38345 and ModelContextProtocol.Core 2.3.0. Roslyn and VisualStudio.LanguageServices are supplied by the host and are not shipped. `VsMcp.Redirects.pkgdef` reconciles the SDK's 10.0.0.13 dependencies with this VS host's 10.0.0.10 assemblies. Recheck actual versions/tokens in devenv.exe.config after either dependency or host upgrades, then run the harness and real experimental-instance tests.
