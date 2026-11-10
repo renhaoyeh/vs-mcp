@@ -1,5 +1,6 @@
 using VsMcp.Services.VisualStudio;
 using System;
+using System.IO;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Threading;
@@ -15,7 +16,26 @@ namespace VsMcp.Tools
     {
         private readonly VsContext vs;
         private readonly TestRunService tests;
-        public TestTools(VsContext context, TestRunService service) { vs = context; tests = service; }
+        private readonly TestDiscoveryService discovery;
+        public TestTools(VsContext context, TestRunService service, TestDiscoveryService discovery) { vs = context; tests = service; this.discovery = discovery; }
+
+        [McpServerTool(Name = "test_discover", Title = "Discover built tests", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = true, UseStructuredContent = true)]
+        [Description("Discover tests in explicitly supplied, already-built C# or native C++ test DLL/EXE containers using the connected Visual Studio VSTest runner and installed adapter. Does not build, run tests or change Test Explorer state. Returns bounded fully qualified test names; discovery failure is reported as an error.")]
+        public async Task<ToolResponse<TestDiscoveryResult>> DiscoverAsync([MinLength(1), MaxLength(32)] string[] sources, string settingsPath = null, string adapterPath = null, [Description("Test-host architecture: x64, x86 or ARM64. Must match native test binaries.")] string platform = "x64", [Range(1, 1000)] int maxResults = 100, [Range(1, 120)] int timeoutSeconds = 30, CancellationToken cancellationToken = default)
+        {
+            if (maxResults < 1 || maxResults > 1000 || timeoutSeconds < 1 || timeoutSeconds > 120) throw new McpToolException(ToolErrorCode.InvalidArgument, "Invalid maxResults or timeoutSeconds.");
+            await vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            var instance = vs.ReadInstance();
+            if (vs.DebugLaunchPending || vs.Dte.Debugger.CurrentMode != EnvDTE.dbgDebugMode.dbgDesignMode || vs.Dte.Solution.SolutionBuild.BuildState == EnvDTE.vsBuildState.vsBuildStateInProgress)
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Wait for the current build/debug operation to finish before discovering tests.");
+            try { return new ToolResponse<TestDiscoveryResult> { Instance = instance, Data = await discovery.DiscoverAsync(sources, settingsPath, adapterPath, platform, maxResults, timeoutSeconds, cancellationToken) }; }
+            catch (ArgumentException e) { throw new McpToolException(ToolErrorCode.InvalidArgument, e.Message); }
+            catch (OperationCanceledException) { throw new McpToolException(ToolErrorCode.ExecutionError, "VSTest discovery was cancelled or timed out."); }
+            catch (TimeoutException e) { throw new McpToolException(ToolErrorCode.ExecutionError, e.Message); }
+            catch (InvalidOperationException e) { throw new McpToolException(ToolErrorCode.ExecutionError, e.Message); }
+            catch (InvalidDataException e) { throw new McpToolException(ToolErrorCode.ExecutionError, e.Message); }
+            catch (IOException e) { throw new McpToolException(ToolErrorCode.ExecutionError, e.Message); }
+        }
 
         [McpServerTool(Name = "test_run", Title = "Run built tests", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true, UseStructuredContent = true)]
         [Description("Run explicitly supplied, already-built C# or native C++ test DLL/EXE containers with the connected Visual Studio installation's VSTest runner. Requires a compatible installed/deployed test adapter. Does not build, restore or change Test Explorer state. Returns a runId and actual TRX results when finished, or running after waitSeconds; collect with test_status. A disconnect does not cancel the run. Modern Microsoft.Testing.Platform-only executables are not supported.")]

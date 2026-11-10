@@ -31,8 +31,16 @@ namespace VsMcp.Infrastructure
             if (!File.Exists(executable)) throw new FileNotFoundException("The connected Visual Studio installation has no VSTest runner. Install its testing workload.", executable);
             var arguments = new List<string>();
             foreach (var path in request.Sources) arguments.Add(Quote(path));
-            arguments.Add(Quote("/ResultsDirectory:" + request.ResultsDirectory));
-            arguments.Add(Quote("/Logger:trx;LogFileName=results.trx"));
+            if (request.Discover)
+            {
+                arguments.Add("/ListFullyQualifiedTests");
+                arguments.Add(Quote("/ListTestsTargetPath:" + request.DiscoveryPath));
+            }
+            else
+            {
+                arguments.Add(Quote("/ResultsDirectory:" + request.ResultsDirectory));
+                arguments.Add(Quote("/Logger:trx;LogFileName=results.trx"));
+            }
             arguments.Add("/InIsolation");
             arguments.Add(Quote("/Platform:" + request.Platform));
             if (!string.IsNullOrEmpty(request.Filter)) arguments.Add(Quote("/TestCaseFilter:" + request.Filter));

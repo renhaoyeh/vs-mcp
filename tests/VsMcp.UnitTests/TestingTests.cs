@@ -83,6 +83,33 @@ public sealed class TestingTests : IDisposable
         var result = await service.StatusAsync(service.Start([source], null, null, null), 10, 100, default);
         Assert.Equal(TestRunStatus.Error, result.Status); Assert.NotNull(result.Error); Assert.Equal("missing report", result.Output);
     }
+
+    [Fact]
+    public async Task Discovery_uses_machine_readable_names_and_bounds_results()
+    {
+        var service = new TestDiscoveryService(new Executor((request, token) =>
+        {
+            Assert.True(request.Discover);
+            Assert.EndsWith(".txt", request.DiscoveryPath);
+            File.WriteAllLines(request.DiscoveryPath, ["A.Test", "B.Test", "C.Test"]);
+            return Task.FromResult(new TestExecutionResult { ExitCode = 0, Output = "diagnostic" });
+        }));
+        var result = await service.DiscoverAsync([source], null, null, "x64", 2, 5, default);
+        Assert.Equal(new[] { "A.Test", "B.Test" }, result.Tests);
+        Assert.True(result.Truncated);
+        Assert.False(File.Exists(Directory.GetFiles(Path.GetTempPath(), "vs-mcp-discovery-*.txt").FirstOrDefault() ?? ""));
+    }
+
+    [Fact]
+    public async Task Discovery_rejects_nonzero_exit_and_honors_timeout()
+    {
+        var failed = new TestDiscoveryService(new Executor((request, token) => Task.FromResult(new TestExecutionResult { ExitCode = 1, Output = "adapter unavailable" })));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => failed.DiscoverAsync([source], null, null, "x64", 10, 5, default));
+        Assert.Contains("adapter unavailable", error.Message);
+
+        var slow = new TestDiscoveryService(new Executor(async (request, token) => { await Task.Delay(Timeout.Infinite, token); return new TestExecutionResult(); }));
+        await Assert.ThrowsAsync<TimeoutException>(() => slow.DiscoverAsync([source], null, null, "x64", 10, 1, default));
+    }
     [Theory]
     [InlineData("C:\\folder with spaces\\test.dll", "\"C:\\folder with spaces\\test.dll\"")]
     [InlineData("a\"b", "\"a\\\"b\"")]

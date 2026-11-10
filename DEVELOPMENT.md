@@ -1,4 +1,4 @@
-﻿# Development
+# Development
 
 ## Architecture
 
@@ -89,6 +89,8 @@ The `show_vs_window` addition passed 13 targeted experimental-hive checks, the R
 The private-desktop test harness subsequently passed all 50 experimental-hive tests on 18.11, including managed/native debugging and two real bridge instances, plus 26 unit tests, 11 bridge tests, the protocol harness, the 52-tool catalog check and a Release VSIX build. The added launch check verifies Unicode environment variables, the working directory, process desktop and exit-code preservation. An initial run overlapped a package build and failed; the final full run used the completed package without concurrent builds. Company-machine 18.6 remains unverified.
 
 ## Dependencies
+
+The four-tool addition (`debugger_attach`, `editor_selection_get`, `project_items`, `test_discover`) passed all 58 background experimental-hive integration tests on VS 18.11, 28 unit tests, 11 bridge tests, the protocol harness, the 56-tool catalog check and a Release VSIX build. The bridge exposes 58 tools including instance selection. Live coverage includes managed automatic and native explicit-engine attach with pause/stack inspection, bounded forward/reversed unsaved selections, C# project items and C++ filters/physical paths, and managed/native VSTest discovery without running the discovered tests. Discovery uses VSTest's fully qualified test-name output file, never localized console parsing. Unit checks cover discovery truncation, runner failure and timeout. The first full run exposed four stale test expectations; after correction the complete suite passed. Company VS 18.6 remains unverified.
 
 `debugger_attach` uses the connected DTE local process list and `Process2.Attach2` on the UI thread, after matching the target executable path. Interrupted attach requests require status inspection before retrying.
 

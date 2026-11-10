@@ -3325,6 +3325,144 @@
       }
     },
     {
+      "name": "test_discover",
+      "title": "Discover built tests",
+      "description": "Discover tests in explicitly supplied, already-built C# or native C++ test DLL/EXE containers using the connected Visual Studio VSTest runner and installed adapter. Does not build, run tests or change Test Explorer state. Returns bounded fully qualified test names; discovery failure is reported as an error.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 32
+          },
+          "settingsPath": {
+            "type": "string",
+            "default": null
+          },
+          "adapterPath": {
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "description": "Test-host architecture: x64, x86 or ARM64. Must match native test binaries.",
+            "type": "string",
+            "default": "x64"
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "default": 30,
+            "minimum": 1,
+            "maximum": 120
+          }
+        },
+        "required": [
+          "sources"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "exitCode": {
+                "type": "integer"
+              },
+              "output": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sources",
+              "tests",
+              "truncated",
+              "exitCode",
+              "output"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
       "name": "test_run",
       "title": "Run built tests",
       "description": "Run explicitly supplied, already-built C# or native C++ test DLL/EXE containers with the connected Visual Studio installation's VSTest runner. Requires a compatible installed/deployed test adapter. Does not build, restore or change Test Explorer state. Returns a runId and actual TRX results when finished, or running after waitSeconds; collect with test_status. A disconnect does not cancel the run. Modern Microsoft.Testing.Platform-only executables are not supported.",

@@ -11,6 +11,8 @@ namespace VsMcp.Services.Testing
         public string AdapterPath { get; set; }
         public string Platform { get; set; } = "x64";
         public string ResultsDirectory { get; set; }
+        public bool Discover { get; set; }
+        public string DiscoveryPath { get; set; }
     }
 
     internal sealed class TestExecutionResult

@@ -72,4 +72,16 @@ public sealed class NativeWorkflowTests(NativeSession session)
         Assert.Equal(1, run.Report.Failed); Assert.Equal(1, run.Report.Passed);
         Assert.Contains(run.Report.Results, r => r.Outcome == "Failed" && !string.IsNullOrEmpty(r.ErrorMessage));
     }
+
+    [Fact]
+    public async Task Native_test_discovery_lists_tests_without_running_them()
+    {
+        var client = session.Client;
+        Assert.Equal(BuildStatus.Succeeded, (await client.Call<BuildOutput>("build_projects", new { projects = new[] { "CppTests" } })).Status);
+        var info = await client.Call<InstanceInfo>("get_vs_info"); var folder = Path.GetDirectoryName(info.SolutionPath!)!;
+        var source = Directory.EnumerateFiles(folder, "CppTests.dll", SearchOption.AllDirectories).Single();
+        var result = (await client.Call<ToolResponse<TestDiscoveryResult>>("test_discover", new { sources = new[] { source } })).Data!;
+        Assert.Contains(result.Tests, name => name.Contains("Passes"));
+        Assert.False(result.Truncated);
+    }
 }

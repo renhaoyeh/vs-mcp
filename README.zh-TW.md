@@ -45,7 +45,7 @@
 
 ## 功能與工具一覽
 
-目前有 **55 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **56 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -61,8 +61,7 @@
 | 偵錯啟停與狀態 | `start_debugging`、`start_without_debugging`、`without_debugging_reconcile`、`stop_debugging`、`get_debug_status` | 啟停目前啟動專案，讀取 debugger mode、程序 PID／路徑及請求狀態；不會自行切換啟動專案或組態。 |
 | 偵錯執行控制 | `debugger_break`、`debugger_continue`、`debugger_step_into`、`debugger_step_over`、`debugger_step_out` | 暫停、繼續與逐步執行；檢查目前偵錯模式後呼叫 debugger API。 |
 | 附加偵錯工具 | `debugger_attach` | 驗證執行檔絕對路徑後附加至本機 PID，可指定偵錯引擎；需要閒置的 IDE。 |
-| 編輯器選取 | `editor_selection_get` | 讀取游標與有限長度的未儲存選取文字，明確回報方塊選取。 |
-| 專案項目 | `project_items` | 讀取專案 unique name、項目階層與實體路徑，最多 2,000 項、64 層。 |
+| IDE 查詢 | `editor_selection_get`、`project_items`、`test_discover` | 讀取編輯器選取範圍、列出專案檔案，以及探索已建置容器內的測試而不執行。 |
 | 斷點 | `debugger_add_breakpoint`、`debugger_list_breakpoints`、`breakpoint_enable`、`debugger_remove_breakpoint` | 新增檔案／行號斷點，可指定條件；列出、啟停及移除斷點。是否繫結仍取決於已載入的符號。 |
 | 偵錯環境選取 | `debugger_list_threads`、`debugger_select_thread`、`debugger_select_frame` | 列舉目前偵錯程式的執行緒；暫停時切換執行緒或堆疊 frame，並讀回確認選取結果。 |
 | 偵錯資料 | `debugger_get_locals`、`debugger_get_callstack`、`debugger_evaluate` | 暫停時讀取目前 frame 的區域變數、目前執行緒的呼叫堆疊，以及運算式結果；結果數量有上限。 |
@@ -78,6 +77,10 @@
 `start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.withoutDebuggingRequest` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
 
 ## C++／C# 支援範圍
+
+`editor_selection_get` 從目前未儲存的文字 buffer 讀取游標與選取座標（從 1 開始），並限制回傳文字長度。沒有作用中的文字編輯器時 data 為 null；方塊選取會回傳 `blockSelection: true` 並省略選取文字。`project_items(project)` 接受精確名稱或 unique name，回傳 unique name、IDE 項目階層及可取得的實體路徑，最多 2,000 個項目、64 層。
+
+`test_discover(sources)` 使用目前 VS 的 VSTest，列出已建置容器內的完整測試名稱而不執行測試。可指定 settings／adapter 路徑與架構，並限制結果數量及逾時；需要已安裝的 adapter，探索過程可能載入 adapter／容器程式碼。`debugger_attach(processId, expectedPath, engine?)` 比對本機執行檔路徑後透過已連線的偵錯工具附加；附加中斷後應先讀取 `get_debug_status`，再決定是否重試。
 
 | 能力 | C# | C++ | 條件與限制 |
 | --- | --- | --- | --- |

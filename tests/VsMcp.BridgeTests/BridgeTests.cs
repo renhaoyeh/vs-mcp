@@ -38,7 +38,7 @@ public sealed class BridgeTests
         }));
         var tools = await client.ListToolsAsync();
         Assert.Contains(hostTrace, line => line.Contains(Path.Combine(Path.GetDirectoryName(executable)!, "coreclr.dll"), StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(57, tools.Count);
+        Assert.Equal(58, tools.Count);
         Assert.Contains(tools, tool => tool.Name == "show_vs_window");
         Assert.Contains(tools, tool => tool.Name == "project_unload");
         Assert.Contains(tools, tool => tool.Name == "project_reload");

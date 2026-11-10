@@ -32,4 +32,16 @@ public sealed class TestRunTests(FixtureSession session)
         var cancelled = (await client.Call<ToolResponse<TestRunResult>>("test_status", new { runId = running.RunId, waitSeconds = 120 })).Data!;
         Assert.Equal(TestRunStatus.Cancelled, cancelled.Status);
     }
+
+    [Fact]
+    public async Task Managed_discovery_lists_known_tests_without_running_them()
+    {
+        var info = await session.Client.Call<InstanceInfo>("get_vs_info");
+        var source = Path.Combine(Path.GetDirectoryName(info.SolutionPath!)!, "TestCases", "bin", "Debug", "net472", "TestCases.dll");
+        var result = (await session.Client.Call<ToolResponse<TestDiscoveryResult>>("test_discover", new { sources = new[] { source } })).Data!;
+        Assert.Contains(result.Tests, name => name.Contains("Passes"));
+        Assert.Contains(result.Tests, name => name.Contains("WaitForCancel"));
+        var bounded = (await session.Client.Call<ToolResponse<TestDiscoveryResult>>("test_discover", new { sources = new[] { source }, maxResults = 1 })).Data!;
+        Assert.Single(bounded.Tests); Assert.True(bounded.Truncated);
+    }
 }

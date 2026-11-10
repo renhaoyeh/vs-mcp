@@ -7,6 +7,15 @@ namespace VsMcp.Contracts
 {
     internal enum TestRunStatus { Running, Passed, Failed, Cancelled, Error, NoTests }
 
+    internal sealed class TestDiscoveryResult
+    {
+        [JsonRequired] public string[] Sources { get; set; } = Array.Empty<string>();
+        [JsonRequired] public string[] Tests { get; set; } = Array.Empty<string>();
+        [JsonRequired] public bool Truncated { get; set; }
+        [JsonRequired] public int ExitCode { get; set; }
+        [JsonRequired] public string Output { get; set; } = "";
+    }
+
     internal sealed class TestCaseResult
     {
         [JsonRequired] public string Name { get; set; } = "";

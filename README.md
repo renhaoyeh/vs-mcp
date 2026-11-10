@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **55 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **56 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -61,8 +61,7 @@ There are **55 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `without_debugging_reconcile`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Attach debugger | `debugger_attach` | Attach to a local PID after checking its absolute executable path; optional debugger engine. Requires an idle IDE. |
-| Editor selection | `editor_selection_get` | Read the active caret and bounded unsaved selection; box selections are reported explicitly. |
-| Project items | `project_items` | Read project unique name, item hierarchy and available physical paths, bounded to 2,000 items and 64 levels. |
+| Additional IDE queries | `editor_selection_get`, `project_items`, `test_discover` | Read the active selection, enumerate project membership and discover tests from built containers without running them. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
 | Debug context | `debugger_list_threads`, `debugger_select_thread`, `debugger_select_frame` | List threads in the current debug program and select a thread or stack frame while paused; verify selection by reading it back. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |
@@ -78,6 +77,10 @@ The official MCP SDK generates parameter definitions, defaults and result schema
 `show_vs_window` with `visible: false` hides VS without closing it or stopping builds/debugging. Showing defaults to no explicit activation; pass `visible: true, activate: true` to request foreground activation. `activationRequested` reports the request, not proof of OS foreground focus. This tool does not establish a persistent background mode: starting debugging currently shows and activates VS, and VS can show itself on a breakpoint.
 
 ## C++ and C# support
+
+`editor_selection_get` returns one-based caret and selection coordinates from the active unsaved text buffer, with bounded selected text. No active text editor returns null data. Box selections report `blockSelection: true` and omit selected text. `project_items(project)` accepts an exact name or unique name and returns that unique name, IDE item hierarchy and available physical paths, bounded to 2,000 items and 64 levels.
+
+`test_discover(sources)` uses the connected VS VSTest runner to list fully qualified test names from already-built containers without executing tests. It accepts optional settings/adapter paths and architecture, with bounded results and a timeout. Adapters must be installed; discovery can load adapter/container code. `debugger_attach(processId, expectedPath, engine?)` checks the local executable path before attaching through the connected debugger. Inspect `get_debug_status` after an interrupted attach before retrying.
 
 | Capability | C# | C++ | Conditions and limitations |
 | --- | --- | --- | --- |

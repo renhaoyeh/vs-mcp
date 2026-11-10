@@ -33,11 +33,12 @@ namespace VsMcp.Tools
         {
             var context = new VsContext(dte, joinableTaskFactory);
             // Runner resolution is deferred to execution and is rooted in this host installation.
-            tests = new TestRunService(new VstestExecutor(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CommonExtensions", "Microsoft", "TestWindow", "vstest.console.exe")));
+            var executor = new VstestExecutor(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CommonExtensions", "Microsoft", "TestWindow", "vstest.console.exe"));
+            tests = new TestRunService(executor);
             context.TestsRunning = () => tests.IsRunning;
             Tools = ToolJson.CreateTools(new SolutionTools(context), new BuildTools(context), new DebugTools(context), new CodeTools(context),
                 new DocumentTools(context, new DocumentService(dte)), new SolutionManagementTools(context), new DiagnosticsTools(context), new DebuggerTools(context),
-                new NavigationTools(context, new NavigationService(new RoslynNavigationService(RoslynNavigationService.GetWorkspace), new NativeNavigationService())), new TestTools(context, tests), new ProjectItemsTools(context));
+                new NavigationTools(context, new NavigationService(new RoslynNavigationService(RoslynNavigationService.GetWorkspace), new NativeNavigationService())), new TestTools(context, tests, new TestDiscoveryService(executor)), new ProjectItemsTools(context));
         }
 
         public IReadOnlyList<McpServerTool> Tools { get; }
