@@ -20,6 +20,12 @@
 }
 ```
 
+也可以將以下指令直接貼給 agent，請它協助設定：
+
+```text
+請幫我設定目前 MCP 用戶端，新增名為 visual-studio 的伺服器。執行檔位於 Windows 的 %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe，請解析成實際完整路徑，確認檔案存在，再依此用戶端的設定格式加入，保留其他既有設定。若檔案不存在，請提醒我先安裝 VS MCP 的 VSIX 並啟動 Visual Studio 一次。
+```
+
 先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。更新橋接程式前請先關閉橋接用戶端，再重新啟動 VS。
 
 直接使用 HTTP 的用戶端仍可連接 `http://127.0.0.1:18770/mcp`。未設定 `VS_MCP_PORT` 時，VS 會先嘗試 18770，碰撞時選擇空閒連接埠，由橋接程式探索實際端點。啟動 VS 前設定 `VS_MCP_PORT` 則會固定連接埠，不會自動改用其他埠。伺服器只監聽 loopback，驗證 Host／Origin，目前沒有認證 token。橋接請求另會識別選定的登記資料，避免連接埠被重用時把呼叫送到另一個執行個體。

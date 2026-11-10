@@ -20,6 +20,12 @@ Install the VSIX and start VS once. The extension installs the bundled bridge at
 }
 ```
 
+To have an agent configure the client, paste this request:
+
+```text
+Please configure my current MCP client by adding a server named visual-studio. Its executable is at %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe on Windows. Resolve this to the actual full path, confirm the file exists, and add it using this client's configuration format while preserving other existing settings. If the file is missing, remind me to install the VS MCP VSIX and start Visual Studio once.
+```
+
 Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying. Close bridge clients before installing an updated bridge, then restart VS.
 
 Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_PORT`, VS first tries port 18770 and chooses a free port on collision; the bridge discovers the assigned endpoint. Setting `VS_MCP_PORT` before starting VS fixes the port and disables fallback. The server listens only on loopback and validates Host/Origin; it currently has no authentication token. Bridge requests additionally identify the selected registration so a reused port cannot redirect a call to another instance.
