@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
@@ -27,11 +26,22 @@ namespace VsMcp.Services.Debugging
         private JObject _status;
         private HashSet<string> _expected;
         private DateTime _requested;
-        public bool IsPending => _status != null && (string)_status["status"] == "unconfirmed";
+        private LaunchTracking _tracking;
+        public bool IsPending => _tracking?.IsPending == true;
 
         public WithoutDebuggingRunner(VsContext vs) { _vs = vs; }
 
-        public JObject Status => _status == null ? null : (JObject)_status.DeepClone();
+        public JObject Status
+        {
+            get
+            {
+                ThreadHelper.ThrowIfNotOnUIThread();
+                if (_status == null) return null;
+                var result = (JObject)_status.DeepClone();
+                result["status"] = _tracking.Status;
+                return result;
+            }
+        }
 
         public async Task<JObject> StartAsync(int waitSeconds, CancellationToken cancellationToken)
         {
@@ -67,10 +77,13 @@ namespace VsMcp.Services.Debugging
             if (!dte.Commands.Item("Debug.StartWithoutDebugging", 0).IsAvailable) throw new McpToolException(ToolErrorCode.DebugStartUnavailable, "VS disables Debug.StartWithoutDebugging.");
             var active = (SolutionConfiguration2)dte.Solution.SolutionBuild.ActiveConfiguration;
             _requested = DateTime.UtcNow;
-            _status = new JObject { ["instance"] = _vs.Instance(), ["status"] = "unconfirmed", ["startup_projects"] = new JArray(startup),
-                ["solution_configuration"] = active.Name, ["platform"] = active.PlatformName, ["expected_paths"] = new JArray(_expected),
+            var tracking = _tracking = new LaunchTracking();
+            var status = _status = new JObject { ["instance"] = _vs.Instance(), ["request_id"] = tracking.Id,
+                ["startup_projects"] = new JArray(startup), ["solution_configuration"] = active.Name,
+                ["platform"] = active.PlatformName, ["expected_paths"] = new JArray(_expected),
                 ["processes"] = new JArray(), ["requested_at"] = _requested.ToString("O"),
-                ["message"] = "Command acceptance is not success. Do not retry an unconfirmed request; inspect VS and get_debug_status." };
+                ["observation_active"] = false,
+                ["message"] = "Command acceptance is not success. Inspect get_debug_status or without_debugging_reconcile; never blindly retry." };
             try
             {
                 var group = VSConstants.GUID_VSStandardCommandSet97;
@@ -79,62 +92,120 @@ namespace VsMcp.Services.Debugging
             }
             catch (Exception ex)
             {
-                _status["status"] = "failed";
-                _status["message"] = ex.Message;
+                tracking.Fail();
+                status["message"] = ex.Message;
                 throw new McpToolException(ToolErrorCode.DebugStartFailed, ex.Message, Status);
             }
-            // Observation runs independently of the caller's lifetime, and never accesses DTE off-thread.
-            var host = System.Diagnostics.Process.GetCurrentProcess().Id;
-            _observation = ObserveAsync(host);
-            await Task.WhenAny(_observation, Task.Delay(TimeSpan.FromSeconds(waitSeconds), cancellationToken));
+            // Immutable request inputs prevent a late observer from inspecting or updating a newer request.
+            status["observation_active"] = true;
+            var observation = _observation = ObserveAsync(tracking, status, _expected, _requested);
+            await Task.WhenAny(observation, Task.Delay(TimeSpan.FromSeconds(waitSeconds), cancellationToken));
             cancellationToken.ThrowIfCancellationRequested();
             await _vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            if (!ReferenceEquals(_tracking, tracking))
+                throw new McpToolException(ToolErrorCode.ExecutionError, "Launch tracking changed; inspect get_debug_status.");
             return Status;
         }
 
-        private async Task ObserveAsync(int host)
+        public async Task<JObject> ReconcileAsync(string requestId, bool abandonTracking, bool acknowledgeLaunchMayStillOccur, CancellationToken token)
+        {
+            await _vs.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            var tracking = _tracking;
+            if (tracking == null) throw new ArgumentException("There is no Ctrl+F5 request to reconcile.");
+            tracking.RequireId(requestId);
+            if (abandonTracking && !acknowledgeLaunchMayStillOccur)
+                throw new ArgumentException("Explicitly acknowledgeLaunchMayStillOccur before abandoning tracking. This does not cancel VS's queued command.");
+            if (tracking.IsPending) await RefreshAsync(tracking, _status, _expected, _requested, token);
+            await _vs.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            // A newer request may have started while the process query was in flight.
+            if (!ReferenceEquals(_tracking, tracking)) throw new ArgumentException("Request is no longer current; read get_debug_status.");
+            if (abandonTracking && tracking.IsPending)
+            {
+                if (_vs.TestsRunning() || BuildRunner.IsRunning || BuildRunner.IsBuildManagerBusy() || _vs.Dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode)
+                    throw new McpToolException(ToolErrorCode.ExecutionError, "Wait for the active build, tests or debugger before abandoning launch tracking.");
+                tracking.Abandon(acknowledgeLaunchMayStillOccur);
+                _status["observation_active"] = false;
+                _status["message"] = "Tracking abandoned explicitly. The VS command was NOT cancelled and may still launch a program. No process was terminated. Inspect VS before another launch.";
+            }
+            return Status;
+        }
+
+        private sealed class Observation
+        {
+            public JArray Processes;
+            public string Error;
+        }
+
+        private static Observation ReadProcesses(HashSet<string> expected, DateTime requested)
+        {
+            try
+            {
+                using (var search = new ManagementObjectSearcher("SELECT ProcessId, ParentProcessId, ExecutablePath, CreationDate FROM Win32_Process"))
+                using (var rows = search.Get())
+                {
+                    var snapshot = new List<LaunchProcess>();
+                    foreach (ManagementObject row in rows)
+                    using (row)
+                    {
+                        var created = row["CreationDate"] as string;
+                        snapshot.Add(new LaunchProcess {
+                            Pid = Convert.ToInt32(row["ProcessId"]), ParentPid = Convert.ToInt32(row["ParentProcessId"]),
+                            Path = row["ExecutablePath"] as string,
+                            Created = created == null ? default : ManagementDateTimeConverter.ToDateTime(created).ToUniversalTime(),
+                        });
+                    }
+                    return new Observation { Processes = new JArray(LaunchObservation.Match(snapshot, System.Diagnostics.Process.GetCurrentProcess().Id, requested, expected)
+                        .Select(p => new JObject { ["pid"] = p.Pid, ["path"] = p.Path })) };
+                }
+            }
+            catch (Exception ex) { return new Observation { Error = ex.Message }; }
+        }
+
+        private async Task RefreshAsync(LaunchTracking tracking, JObject status, HashSet<string> expected, DateTime requested, CancellationToken token)
         {
             await TaskScheduler.Default;
-            var deadline = DateTime.UtcNow.AddMinutes(2);
-            while (DateTime.UtcNow < deadline)
+            token.ThrowIfCancellationRequested();
+            var observation = ReadProcesses(expected, requested);
+            await _vs.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            if (!ReferenceEquals(_tracking, tracking) || !tracking.IsPending) return;
+            status["last_checked_at"] = DateTime.UtcNow.ToString("O");
+            status["observation_error"] = observation.Error;
+            if (observation.Processes == null) return;
+            status["processes"] = observation.Processes;
+            if (expected.All(path => observation.Processes.OfType<JObject>().Any(p => string.Equals((string)p["path"], path, StringComparison.OrdinalIgnoreCase))))
             {
-                JArray found = null;
-                string error = null;
-                try
-                {
-                    using (var search = new ManagementObjectSearcher("SELECT ProcessId, ParentProcessId, ExecutablePath, CreationDate FROM Win32_Process"))
-                    using (var rows = search.Get())
-                    {
-                        var snapshot = new List<LaunchProcess>();
-                        foreach (ManagementObject row in rows)
-                        using (row)
-                        {
-                            var created = row["CreationDate"] as string;
-                            snapshot.Add(new LaunchProcess {
-                                Pid = Convert.ToInt32(row["ProcessId"]),
-                                ParentPid = Convert.ToInt32(row["ParentProcessId"]),
-                                Path = row["ExecutablePath"] as string,
-                                Created = created == null ? default : ManagementDateTimeConverter.ToDateTime(created).ToUniversalTime(),
-                            });
-                        }
-                        found = new JArray(LaunchObservation.Match(snapshot, host, _requested, _expected)
-                            .Select(p => new JObject { ["pid"] = p.Pid, ["path"] = p.Path }));
-                    }
-                }
-                catch (Exception ex) { error = ex.Message; }
-                await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
-                if (found != null) _status["processes"] = found;
-                if (error != null) _status["observation_error"] = error;
-                if (found != null && _expected.All(path => found.OfType<JObject>().Any(p => string.Equals((string)p["path"], path, StringComparison.OrdinalIgnoreCase))))
-                {
-                    _status["status"] = "started";
-                    _status["message"] = "Observed new VS descendant processes matching every expected executable. This is launch confirmation, not application readiness.";
-                    return;
-                }
-                await Task.Delay(500).ConfigureAwait(false);
+                tracking.Confirm();
+                status["observation_active"] = false;
+                status["message"] = "Observed new VS descendant processes matching every expected executable. This confirms launch, not application readiness.";
             }
-            await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
-            _status["message"] = "Launch could not be confirmed within 120 seconds; request remains unresolved and blocks further launches. Inspect VS; restart the extension after resolving it. Short-lived processes or detached launchers may not be observable.";
+        }
+
+        private async Task ObserveAsync(LaunchTracking tracking, JObject status, HashSet<string> expected, DateTime requested)
+        {
+            var deadline = DateTime.UtcNow.AddMinutes(2);
+            try
+            {
+                while (DateTime.UtcNow < deadline)
+                {
+                    await RefreshAsync(tracking, status, expected, requested, CancellationToken.None);
+                    await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
+                    if (!ReferenceEquals(_tracking, tracking) || !tracking.IsPending) return;
+                    await Task.Delay(500);
+                }
+                await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (ReferenceEquals(_tracking, tracking) && tracking.IsPending)
+                    status["message"] = "Launch unconfirmed after 120 seconds; further launches remain blocked. Use without_debugging_reconcile to recheck, or explicitly abandon tracking after inspecting VS. Short-lived processes or detached launchers may be missed.";
+            }
+            catch (Exception ex)
+            {
+                await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (ReferenceEquals(_tracking, tracking) && tracking.IsPending) status["observation_error"] = ex.Message;
+            }
+            finally
+            {
+                await _vs.JoinableTaskFactory.SwitchToMainThreadAsync();
+                status["observation_active"] = false;
+            }
         }
     }
 }

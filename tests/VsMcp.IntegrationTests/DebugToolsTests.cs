@@ -58,6 +58,12 @@ public sealed class DebugToolsTests(DebugSession session)
             await Task.Delay(250);
         } while (DateTime.UtcNow < deadline);
         Assert.Equal("started", launch.GetProperty("status").GetString());
+        var requestId = launch.GetProperty("request_id").GetString();
+        Assert.Contains("stale", await client.Fail("without_debugging_reconcile", new { requestId = "stale" }));
+        Assert.Contains("acknowledge", await client.Fail("without_debugging_reconcile", new { requestId, abandonTracking = true }));
+        var reconciled = await client.Call<System.Text.Json.JsonElement>("without_debugging_reconcile", new { requestId });
+        Assert.Equal("started", reconciled.GetProperty("status").GetString());
+        Assert.Equal(requestId, reconciled.GetProperty("request_id").GetString());
         Assert.Equal(before.SolutionConfiguration, launch.GetProperty("solution_configuration").GetString());
         Assert.Equal(before.Platform, launch.GetProperty("platform").GetString());
         foreach (var item in launch.GetProperty("processes").EnumerateArray())

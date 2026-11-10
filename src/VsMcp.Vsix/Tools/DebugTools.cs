@@ -58,7 +58,7 @@ namespace VsMcp.Tools
         }
 
         [McpServerTool(Name = "start_without_debugging", Title = "Start without debugging", ReadOnly = false, Destructive = true, Idempotent = false, OpenWorld = true)]
-        [Description("Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; never blindly retry. stop_debugging does not terminate these processes.")]
+        [Description("Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; use without_debugging_reconcile to recheck or explicitly abandon tracking, never blindly retry. stop_debugging does not terminate these processes.")]
         public async Task<CallToolResult> StartWithoutDebuggingTool(
             [Description("Seconds to wait for actual process confirmation; default 30. Observation continues independently up to 120 seconds.")] [Range(0, 120)] int waitSeconds = 30,
             CancellationToken cancellationToken = default)
@@ -66,6 +66,18 @@ namespace VsMcp.Tools
             await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             if (_vs.TestsRunning()) throw new McpToolException(ToolErrorCode.ExecutionError, "Wait for or cancel the owned test run before launching.");
             return ToolJson.Result(await _vs.WithoutDebugging().StartAsync(Math.Max(0, Math.Min(120, waitSeconds)), cancellationToken));
+        }
+
+        [McpServerTool(Name = "without_debugging_reconcile", Title = "Reconcile a Ctrl+F5 request", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = true)]
+        [Description("Recheck the exact Ctrl+F5 request from get_debug_status.without_debugging_request.request_id using a fresh process snapshot, even after background observation expired. Never posts another launch. By default an unconfirmed request keeps blocking launches. After inspecting VS, explicitly set abandonTracking and acknowledgeLaunchMayStillOccur to true to release an unresolved request. Abandoning tracking does NOT cancel a queued VS command, prove launch failure, or terminate processes; a late launch remains possible. Active builds/tests/debugging prevent abandonment. A newly confirmed request stays started rather than abandoned. Stale request IDs fail without changing the current request.")]
+        public async Task<CallToolResult> ReconcileWithoutDebuggingAsync(
+            [Description("Exact request_id returned by start_without_debugging or get_debug_status.")] string requestId,
+            [Description("Explicitly release an unconfirmed request after rechecking. Does not cancel the VS command.")] bool abandonTracking = false,
+            [Description("Must be true with abandonTracking: a queued command may still launch a program.")] bool acknowledgeLaunchMayStillOccur = false,
+            CancellationToken cancellationToken = default)
+        {
+            await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            return ToolJson.Result(await _vs.WithoutDebugging().ReconcileAsync(requestId, abandonTracking, acknowledgeLaunchMayStillOccur, cancellationToken));
         }
 
         [McpServerTool(Name = "stop_debugging", Title = "Stop debugging", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = true)]

@@ -2622,7 +2622,7 @@
     {
       "name": "start_without_debugging",
       "title": "Start without debugging",
-      "description": "Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; never blindly retry. stop_debugging does not terminate these processes.",
+      "description": "Launch like Ctrl+F5 using the current configuration and startup projects. VS may build dependencies according to its own settings. Rejects builds, active tests/debugging and unresolved launches. Supports startup projects exposing one executable via the active Built output group (managed DLL outputs require an EXE apphost). External programs, browser and dotnet-hosted launches are unsupported. Returns started only after observing new VS descendant processes matching every expected path, including PID/path; this does not prove application readiness. Otherwise returns unconfirmed, never success on command acceptance. Observation continues for 120 seconds despite cancellation; inspect get_debug_status.without_debugging_request. Unconfirmed requests block further launches; use without_debugging_reconcile to recheck or explicitly abandon tracking, never blindly retry. stop_debugging does not terminate these processes.",
       "readOnly": false,
       "destructive": true,
       "idempotent": false,
@@ -3373,6 +3373,38 @@
           "data"
         ]
       }
+    },
+    {
+      "name": "without_debugging_reconcile",
+      "title": "Reconcile a Ctrl+F5 request",
+      "description": "Recheck the exact Ctrl+F5 request from get_debug_status.without_debugging_request.request_id using a fresh process snapshot, even after background observation expired. Never posts another launch. By default an unconfirmed request keeps blocking launches. After inspecting VS, explicitly set abandonTracking and acknowledgeLaunchMayStillOccur to true to release an unresolved request. Abandoning tracking does NOT cancel a queued VS command, prove launch failure, or terminate processes; a late launch remains possible. Active builds/tests/debugging prevent abandonment. A newly confirmed request stays started rather than abandoned. Stale request IDs fail without changing the current request.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": true,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "description": "Exact request_id returned by start_without_debugging or get_debug_status.",
+            "type": "string"
+          },
+          "abandonTracking": {
+            "description": "Explicitly release an unconfirmed request after rechecking. Does not cancel the VS command.",
+            "type": "boolean",
+            "default": false
+          },
+          "acknowledgeLaunchMayStillOccur": {
+            "description": "Must be true with abandonTracking: a queued command may still launch a program.",
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "requestId"
+        ]
+      },
+      "outputSchema": null
     }
   ]
 }
