@@ -38,6 +38,16 @@ internal static class ExpHost
 
     public static int Port { get; } = int.TryParse(Environment.GetEnvironmentVariable("VS_MCP_TEST_PORT"), out var port) ? port : 18772;
 
+    // A separate experimental hive allows validation without altering an existing developer hive.
+    public static string RootSuffix { get; } = ReadRootSuffix();
+    private static string ReadRootSuffix()
+    {
+        var value = Environment.GetEnvironmentVariable("VS_MCP_TEST_ROOT_SUFFIX") ?? "Exp";
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z][A-Za-z0-9]{0,31}$"))
+            throw new XunitException("VS_MCP_TEST_ROOT_SUFFIX must be a non-empty alphanumeric experimental suffix.");
+        return value;
+    }
+
     public static string Endpoint => $"http://127.0.0.1:{Port}/mcp";
 
     /// <summary>The repository folder that holds <c>tests/VsMcp.TestProjects</c> and <c>src</c>.</summary>
@@ -210,12 +220,12 @@ internal static class ExpHost
     private static void InstallPackage()
     {
         Log("installing the extension into the experimental hive");
-        RunHidden(Ide("VSIXInstaller.exe"), $"/quiet /rootSuffix:Exp /uninstall:{ExtensionId}", 120, ignoreExitCode: true);
-        RunHidden(Ide("VSIXInstaller.exe"), $"/quiet /rootSuffix:Exp \"{Package}\"", 120);
+        RunHidden(Ide("VSIXInstaller.exe"), $"/quiet /rootSuffix:{RootSuffix} /uninstall:{ExtensionId}", 120, ignoreExitCode: true);
+        RunHidden(Ide("VSIXInstaller.exe"), $"/quiet /rootSuffix:{RootSuffix} \"{Package}\"", 120);
 
         // Without this a new or changed .pkgdef is not merged and the extension fails to load. It must finish first.
         Log("updating the experimental configuration");
-        RunHidden(Ide("devenv.exe"), "/rootsuffix Exp /updateconfiguration", 180);
+        RunHidden(Ide("devenv.exe"), $"/rootsuffix {RootSuffix} /updateconfiguration", 180);
     }
 
     private static bool s_reinstalled;
@@ -242,7 +252,7 @@ internal static class ExpHost
     {
         var hives = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "VisualStudio");
         if (!Directory.Exists(hives)) return false;
-        return Directory.EnumerateDirectories(hives, "*Exp")
+        return Directory.EnumerateDirectories(hives).Where(directory => Path.GetFileName(directory).EndsWith(RootSuffix, StringComparison.OrdinalIgnoreCase))
             .Select(hive => Path.Combine(hive, "Extensions"))
             .Where(Directory.Exists)
             .SelectMany(extensions => Directory.EnumerateFiles(extensions, "VsMcp.dll", SearchOption.AllDirectories))
@@ -301,7 +311,7 @@ internal static class ExpHost
         var hives = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "VisualStudio");
         if (!Directory.Exists(hives)) return null;
 
-        foreach (var log in Directory.EnumerateDirectories(hives, "*Exp").Select(directory => Path.Combine(directory, "ActivityLog.xml")).Where(File.Exists))
+        foreach (var log in Directory.EnumerateDirectories(hives).Where(directory => Path.GetFileName(directory).EndsWith(RootSuffix, StringComparison.OrdinalIgnoreCase)).Select(directory => Path.Combine(directory, "ActivityLog.xml")).Where(File.Exists))
         {
             if (File.GetLastWriteTimeUtc(log) < startedUtc.AddSeconds(-5)) continue;
             try
@@ -349,7 +359,7 @@ internal static class ExpHost
     {
         Log($"starting the experimental instance with {solutionPath}");
         // /log must come last and without an argument: it takes the next argument as its output file.
-        var info = new ProcessStartInfo(Ide("devenv.exe"), $"\"{solutionPath}\" /rootsuffix Exp /NoSplash /log") { UseShellExecute = false };
+        var info = new ProcessStartInfo(Ide("devenv.exe"), $"\"{solutionPath}\" /rootsuffix {RootSuffix} /NoSplash /log") { UseShellExecute = false };
         if (automaticPort) info.Environment.Remove("VS_MCP_PORT");
         else info.Environment["VS_MCP_PORT"] = Port.ToString();
         return Desktop.Value.Start(info);
