@@ -27,6 +27,7 @@ namespace VsMcp.Services.Debugging
         private readonly JoinableTaskFactory _factory;
         private Launch _lastStop;
         private int _sessionGeneration;
+        private JObject _dumpRequest;
         public DebugBreakContext BreakContext { get; } = new DebugBreakContext();
 
         private static readonly JsonSerializer ModeSerializer = JsonSerializer.Create(new JsonSerializerSettings
@@ -61,6 +62,7 @@ namespace VsMcp.Services.Debugging
         {
             public DebugPhase Phase;
             public string Error;
+            public bool IsDump;
         }
 
         public DebugRunner(DTE2 dte, JoinableTaskFactory factory)
@@ -179,6 +181,7 @@ namespace VsMcp.Services.Debugging
             if (!_dte.Commands.Item("Debug.Start", 0).IsAvailable)
                 throw new McpToolException(ToolErrorCode.DebugStartUnavailable, "VS currently disables Debug.Start.");
 
+            _dumpRequest = null;
             _last = new Launch { Phase = DebugPhase.Requested };
             // Use VS's asynchronous command queue rather than invoking Go inside this MCP call.
             var group = VSConstants.GUID_VSStandardCommandSet97;
@@ -198,6 +201,44 @@ namespace VsMcp.Services.Debugging
             return new JObject { ["instance"] = instance, ["request"] = Describe(_last),
                 ["startup_projects"] = new JArray(startup), ["solution_configuration"] = active?.Name,
                 ["platform"] = active?.PlatformName, ["build_behavior"] = "VS F5 settings; dependencies may be built" };
+        }
+
+        public JObject OpenDump(JObject instance, string path, Guid engine, IDisposable fileLease)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (IsPending || _dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode || BuildRunner.IsRunning || BuildRunner.IsBuildManagerBusy())
+                throw new McpToolException(ToolErrorCode.DebugOperationPending, "Wait for builds, debugging and pending requests to finish before opening a dump.");
+            var operation = new Launch { Phase = DebugPhase.Requested, IsDump = true };
+            _last = operation;
+            _dumpRequest = new JObject { ["path"] = path, ["engineGuid"] = engine.ToString() };
+            _ = _factory.RunAsync(async () =>
+            {
+                await TaskScheduler.Default;
+                await _factory.SwitchToMainThreadAsync();
+                try
+                {
+                    if (operation.Phase != DebugPhase.Requested || !ReferenceEquals(_last, operation)) return;
+                    if (_dte.Debugger.CurrentMode != dbgDebugMode.dbgDesignMode || BuildRunner.IsRunning || BuildRunner.IsBuildManagerBusy())
+                        throw new InvalidOperationException("IDE state changed before dump launch; launch was not issued.");
+                    var debugger = (IVsDebugger4)Package.GetGlobalService(typeof(SVsShellDebugger));
+                    var target = new VsDebugTargetInfo4
+                    {
+                        dlo = (uint)DEBUG_LAUNCH_OPERATION.DLO_CreateProcess,
+                        bstrExe = path,
+                        guidLaunchDebugEngine = engine,
+                        LaunchFlags = (uint)__VSDBGLAUNCHFLAGS120.DBGLAUNCH_ALLOW_EVENTS_AFTER_STOPPED |
+                            (uint)__VSDBGLAUNCHFLAGS2.DBGLAUNCH_StopAtEntryPoint |
+                            (uint)__VSDBGLAUNCHFLAGS158.DBGLAUNCH_ForcePseudoRemoteDebug,
+                    };
+                    // Launch the specified dump directly through SDM, never F5/current startup projects.
+                    debugger.LaunchDebugTargets4(1, new[] { target }, new VsDebugTargetProcessInfo[1]);
+                    if (_dte.Debugger.CurrentMode == dbgDebugMode.dbgBreakMode) operation.Phase = DebugPhase.Break;
+                }
+                catch (Exception ex) { operation.Phase = DebugPhase.Failed; operation.Error = ex.Message; }
+                finally { fileLease.Dispose(); }
+                Notify();
+            });
+            return new JObject { ["instance"] = instance, ["request"] = Describe(operation), ["dumpRequest"] = _dumpRequest.DeepClone() };
         }
 
         private int[] ProcessIds()
@@ -266,8 +307,9 @@ namespace VsMcp.Services.Debugging
             else if (mode == dbgDebugMode.dbgBreakMode) Observe(DebugPhase.Break);
             var active = _dte.Solution.IsOpen ? _dte.Solution.SolutionBuild.ActiveConfiguration as SolutionConfiguration2 : null;
             var processes = new JArray();
+            var dumpSession = _last?.IsDump == true && _last.Phase != DebugPhase.Ended && _last.Phase != DebugPhase.Failed;
             foreach (EnvDTE.Process process in _dte.Debugger.DebuggedProcesses)
-                processes.Add(new JObject { ["pid"] = process.ProcessID, ["path"] = process.Name });
+                processes.Add(new JObject { ["pid"] = process.ProcessID, ["path"] = process.Name, ["isDump"] = dumpSession });
             if (_lastStop?.Phase == DebugPhase.Requested && mode == dbgDebugMode.dbgDesignMode && processes.Count == 0)
                 _lastStop.Phase = DebugPhase.Stopped;
             return new JObject
@@ -276,6 +318,7 @@ namespace VsMcp.Services.Debugging
                 ["solution_configuration"] = active?.Name, ["platform"] = active?.PlatformName,
                 ["startup_projects"] = _dte.Solution.IsOpen ? new JArray(StartupProjects()) : new JArray(),
                 ["processes"] = processes,
+                ["dumpRequest"] = _dumpRequest?.DeepClone(),
                 ["stop_request"] = Describe(_lastStop),
             };
         }

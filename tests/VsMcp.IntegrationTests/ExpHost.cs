@@ -347,7 +347,12 @@ internal static class ExpHost
     internal static void VerifyBackgroundProcesses(System.Text.Json.JsonElement status)
     {
         if (status.TryGetProperty("processes", out var processes))
-            foreach (var process in processes.EnumerateArray()) Desktop.Value.VerifyProcess(process.GetProperty("pid").GetInt32());
+            foreach (var process in processes.EnumerateArray())
+            {
+                // A dump PID identifies a recorded process, not a live OS target on a desktop.
+                if (process.TryGetProperty("isDump", out var isDump) && isDump.GetBoolean()) continue;
+                Desktop.Value.VerifyProcess(process.GetProperty("pid").GetInt32());
+            }
         if (status.TryGetProperty("withoutDebuggingRequest", out var launch) && launch.ValueKind == System.Text.Json.JsonValueKind.Object)
             VerifyBackgroundProcesses(launch);
     }

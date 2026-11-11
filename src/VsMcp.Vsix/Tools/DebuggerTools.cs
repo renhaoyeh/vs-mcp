@@ -217,7 +217,7 @@ namespace VsMcp.Tools
             var locals = vs.Dte.Debugger.CurrentStackFrame.Locals;
             return Result(new { items = locals.Cast<Expression>().Take(maxResults).Select(e => { ThreadHelper.ThrowIfNotOnUIThread(); return new { e.Name, e.Type, e.Value, e.IsValidValue }; }).ToArray(), truncated = locals.Count > maxResults });
         }
-        [McpServerTool(Name = "debugger_get_callstack", Title = "debugger_get_callstack", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false), Description("Read bounded stack frames from the current thread of a paused debug session, with one-based frameIndex, isCurrent, contextId, processId and threadId for safe frame selection.")]
+        [McpServerTool(Name = "debugger_get_callstack", Title = "debugger_get_callstack", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false), Description("Read bounded stack frames from the current thread of a paused live or dump session, with one-based frameIndex, isCurrent, contextId, processId and threadId for safe selection. Includes engine-reported sourcePath and one-based sourceLine when symbols expose them; unavailable locations are null with sourceError when reading failed. A symbol location does not prove the local source matches the build.")]
         public async Task<CallToolResult> StackAsync(int maxFrames = 100, CancellationToken cancellationToken = default)
         {
             if (maxFrames < 1 || maxFrames > 1000) throw new ArgumentOutOfRangeException(nameof(maxFrames));
@@ -231,7 +231,16 @@ namespace VsMcp.Tools
             var currentDepth = current.Depth;
             var items = frames.Cast<StackFrame>().Take(maxFrames).Select((f, index) => {
                 ThreadHelper.ThrowIfNotOnUIThread();
-                return new { frameIndex = index + 1, isCurrent = f is EnvDTE90a.StackFrame2 frame && frame.Depth == currentDepth, f.FunctionName, f.Module, f.Language };
+                string sourcePath = null, sourceError = null;
+                uint? sourceLine = null;
+                var frame = f as EnvDTE90a.StackFrame2;
+                if (frame != null)
+                {
+                    try { sourcePath = frame.FileName; var line = frame.LineNumber; if (line > 0) sourceLine = line; }
+                    catch (COMException ex) { sourceError = ex.Message; }
+                }
+                if (string.IsNullOrWhiteSpace(sourcePath)) sourcePath = null;
+                return new { frameIndex = index + 1, isCurrent = frame != null && frame.Depth == currentDepth, f.FunctionName, f.Module, f.Language, sourcePath, sourceLine, sourceError };
             }).ToArray();
             RequireContext(contextId, processId, threadId);
             return Result(new { contextId, processId, threadId, frames = items, truncated = frames.Count > maxFrames });

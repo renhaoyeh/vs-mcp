@@ -484,7 +484,7 @@
     {
       "name": "debugger_get_callstack",
       "title": "debugger_get_callstack",
-      "description": "Read bounded stack frames from the current thread of a paused debug session, with one-based frameIndex, isCurrent, contextId, processId and threadId for safe frame selection.",
+      "description": "Read bounded stack frames from the current thread of a paused live or dump session, with one-based frameIndex, isCurrent, contextId, processId and threadId for safe selection. Includes engine-reported sourcePath and one-based sourceLine when symbols expose them; unavailable locations are null with sourceError when reading failed. A symbol location does not prove the local source matches the build.",
       "readOnly": true,
       "destructive": false,
       "idempotent": true,
@@ -499,6 +499,154 @@
         }
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_get_exception",
+      "title": "Read observed debugger exception",
+      "description": "Read the last exception event observed from the VS debug engine for the currently selected paused process, with exception code/name/description, event thread, state and observation time plus the current break reason/thread. Works for live and dump sessions when their engine emits exception events. Null means none observed; it does not mean no exception/crash occurred. An observed event is not proof of a crash or the cause of the current stop. Use debugger_get_callstack and debugger_list_threads to inspect context; this tool never evaluates expressions, resumes or changes exception settings.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "currentThreadId": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "breakReason": {
+            "type": "string"
+          },
+          "lastObservedException": {
+            "description": "Last engine exception event observed for this paused process. Null when none was observed; not proof of a crash or of the cause of the current stop.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "processId": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "programId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "processGuid": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "threadId": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "code": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "category": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "observedAtUtc": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "observationError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "processId",
+          "breakReason"
+        ]
+      }
     },
     {
       "name": "debugger_get_locals",
@@ -520,6 +668,106 @@
       "outputSchema": null
     },
     {
+      "name": "debugger_get_symbol_settings",
+      "title": "Read debugger symbol settings",
+      "description": "Read the connected VS debugger's persistent PDB search paths, enabled-path mask, cache path and manual-loading preference through Debugger4. Does not load symbols, access symbol servers or change a debug session. Available without a solution.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "previous": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "symbolPath": {
+                "type": "string"
+              },
+              "symbolPathState": {
+                "type": "string"
+              },
+              "symbolCachePath": {
+                "type": "string"
+              },
+              "onlyLoadSymbolsManually": {
+                "type": "boolean"
+              }
+            }
+          },
+          "loadSymbolsRequested": {
+            "description": "Whether the call requested immediate symbol loading. Use module symbol status to inspect the result.",
+            "type": "boolean"
+          },
+          "symbolPath": {
+            "type": "string"
+          },
+          "symbolPathState": {
+            "type": "string"
+          },
+          "symbolCachePath": {
+            "type": "string"
+          },
+          "onlyLoadSymbolsManually": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance"
+        ]
+      }
+    },
+    {
       "name": "debugger_list_breakpoints",
       "title": "debugger_list_breakpoints",
       "description": "List top-level debugger breakpoints with location, condition and enabled state.",
@@ -532,6 +780,164 @@
         "properties": {}
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_list_modules",
+      "title": "List debugger modules",
+      "description": "Read bounded modules for the currently selected paused process, including dump sessions, via observed debug programs or the exact current Process3.Modules automation view. Reports VS engine-supplied paths, versions, symbol status/location, addresses and timestamps; fields unavailable through the selected provider are null and per-module failures have error. Does not read newer local binaries as a substitute, force symbol loading or change selection. An engine timestamp is not proof of source/build identity. Unsupported enumeration fails explicitly.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxModules": {
+            "type": "integer",
+            "default": 200,
+            "minimum": 1,
+            "maximum": 5000
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "programId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "version": {
+                  "description": "Version reported by the debug engine, not a potentially newer local DLL.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "symbolPath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "symbolStatus": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "loadAddress": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "timestampUtc": {
+                  "description": "Timestamp reported by the debug engine. Not proof of source/build identity.",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "flags": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance",
+          "processId",
+          "items",
+          "truncated"
+        ]
+      }
     },
     {
       "name": "debugger_list_threads",
@@ -551,6 +957,31 @@
             "maximum": 1000
           }
         }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_open_dump",
+      "title": "Debug a dump in Visual Studio",
+      "description": "Request debugging of an existing Windows user-mode minidump in the connected idle VS via its native debugger API. Requires an absolute .dmp/.mdmp/.hdmp path and MDMP header. engineGuid defaults to the VS native-code engine; an explicit installed dump-capable engine GUID can select another engine. This is a debug-session mutation, not offline analysis: VS may display UI, load symbols or use configured symbol servers. Does not run F5, build, change the solution/configuration/startup projects, search WER or invoke cdb. Returns request acceptance, not successful dump loading; inspect get_debug_status.request and dumpRequest until break/failed/ended. Once paused, use debugger_get_exception, debugger_list_modules, debugger_get_callstack, debugger_list_threads and debugger_get_locals. stop_debugging ends the dump session. After interruption inspect status; never blindly retry.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "engineGuid": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "path"
+        ]
       },
       "outputSchema": null
     },
@@ -578,6 +1009,114 @@
         ]
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_save_dump",
+      "title": "Save current debug process dump",
+      "description": "Save a normal or full dump of the currently selected paused debug process using VS WriteMinidump. Requires processId to match the current debugger process and an absolute new .dmp path in an existing directory. Never overwrites an existing target. Writes to a unique temporary dump then moves it to the target; a failed write/move preserves the temporary dump and reports its path. Full dumps can be large. This captures the current paused state, not necessarily a crash. Does not resume, attach or invoke external dump tools. Engine support varies. After interruption inspect the target/temporary files before retrying.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "full"
+            ],
+            "default": "normal"
+          }
+        },
+        "required": [
+          "path",
+          "processId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "full"
+            ]
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "length": {
+            "type": "integer"
+          },
+          "lastWriteTimeUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "instance",
+          "path",
+          "kind",
+          "processId",
+          "length",
+          "lastWriteTimeUtc"
+        ]
+      }
     },
     {
       "name": "debugger_select_frame",
@@ -642,6 +1181,130 @@
         ]
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_set_symbol_settings",
+      "title": "Update debugger symbol settings",
+      "description": "Patch the connected idle or paused VS debugger's persistent PDB settings through Debugger4.SetSymbolSettings. Specify at least one field or loadSymbolsNow. If changing symbolPath, also pass symbolPathState: one character per semicolon-separated path, 1 enabled and other characters disabled; empty strings clear the path/mask. Omitted fields retain their current values. Returns previous and read-back settings. loadSymbolsNow requires a paused session, may block while VS searches configured local paths/symbol servers and is only a loading request, not proof every module found matching PDBs; inspect debugger_list_modules afterward. No automatic restore. After interruption/error read settings and module status before retrying. Does not alter active configuration or startup projects.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbolPath": {
+            "type": "string",
+            "default": null
+          },
+          "symbolPathState": {
+            "type": "string",
+            "default": null
+          },
+          "symbolCachePath": {
+            "type": "string",
+            "default": null
+          },
+          "onlyLoadSymbolsManually": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "loadSymbolsNow": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "previous": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "symbolPath": {
+                "type": "string"
+              },
+              "symbolPathState": {
+                "type": "string"
+              },
+              "symbolCachePath": {
+                "type": "string"
+              },
+              "onlyLoadSymbolsManually": {
+                "type": "boolean"
+              }
+            }
+          },
+          "loadSymbolsRequested": {
+            "description": "Whether the call requested immediate symbol loading. Use module symbol status to inspect the result.",
+            "type": "boolean"
+          },
+          "symbolPath": {
+            "type": "string"
+          },
+          "symbolPathState": {
+            "type": "string"
+          },
+          "symbolCachePath": {
+            "type": "string"
+          },
+          "onlyLoadSymbolsManually": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "instance"
+        ]
+      }
     },
     {
       "name": "debugger_step_into",

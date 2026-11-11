@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **58 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **64 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -60,6 +60,8 @@ There are **58 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Editor documents | `document_list`, `document_active`, `document_open`, `document_read`, `document_write`, `document_save`, `document_close` | Read and write IDE documents, including unsaved content; return saved/read-only state and the full buffer's SHA-256 when reading. |
 | Precise edits | `editor_replace` | Apply case-sensitive text replacements after checking SHA-256; reject missing or ambiguous matches and stale content. Replacing all matches requires an explicit option. |
 | Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `without_debugging_reconcile`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
+| VS dump diagnostics | `debugger_open_dump`, `debugger_save_dump`, `debugger_list_modules`, `debugger_get_exception` | Debug an existing Windows minidump in VS, save a paused process dump without overwriting, and inspect engine-reported modules/symbols and observed exception events. Uses the connected VS debugger. |
+| PDB preferences | `debugger_get_symbol_settings`, `debugger_set_symbol_settings` | Read or explicitly update persistent PDB search paths, enabled-path mask, cache and loading policy; optional immediate symbol loading requires a paused session. Returns previous/read-back settings. |
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Attach debugger | `debugger_attach` | Attach to a local PID after checking its absolute executable path; optional debugger engine. Requires an idle IDE. |
 | Additional IDE queries | `editor_selection_get`, `project_items`, `test_discover` | Read the active selection, enumerate project membership and discover tests from built containers without running them. |
@@ -82,6 +84,14 @@ The official MCP SDK generates parameter definitions, defaults and result schema
 These preferences persist across solutions and are not restored automatically. Save the `previous` snapshot to restore explicitly. For example, `set_build_settings(maxParallelProjectBuilds: 2, lowPriorityBuild: true, outputVerbosity: "minimal")` reduces project concurrency and requests low priority for subsequent IDE builds. It does not cap CPU/compiler threads or directly change existing process priorities. Updates across settings providers are not transactional; failures include previous/current snapshots. `updateStatus: "pendingApproval"` means VS has not committed the native settings request; C++ timing/logging writes are deferred and must be requested again after approval is resolved. Read the settings after resolving the native request, an error or an interrupted call before retrying. No tool implicitly changes the active configuration or startup projects.
 
 ## C++ and C# support
+
+For a dump already on disk, set PDB preferences with `debugger_set_symbol_settings` if needed, then call `debugger_open_dump(path)`. The default engine is VS native-code debugging; `engineGuid` can explicitly select another installed dump-capable engine. The tool validates the extension/header and keeps the file locked against replacement during launch. It invokes the debugger on that file directly, without F5 or replacing the solution/startup projects. Opening is asynchronous: inspect `get_debug_status.request` and `dumpRequest`; acceptance alone is not a successfully loaded dump. Once paused, inspect `debugger_get_exception`, `debugger_list_modules`, `debugger_get_callstack`, threads and locals, then end the session with `stop_debugging`. Dump/engine compatibility is host-dependent.
+
+`debugger_save_dump(path, processId, kind: "normal")` captures the selected paused process using VS; `kind: "full"` includes more memory and can be large. The destination must be new. A failed save/move preserves its temporary dump and reports the path. Inspect files and debug status after interruption before issuing another mutation. No WER/event-log search, automatic dump discovery or external cdb dependency is included.
+
+Module versions, timestamps and symbol locations come from VS, not a newer local DLL. The provider uses observed debug programs or the exact current process's automation module list; fields unavailable through that provider (including program IDs/timestamps in the automation view) are null, and module read errors are explicit. Exception information is the last engine event observed for the current paused process: it may be absent and is not proof of a crash or the current stop cause. Call stacks include `sourcePath` and one-based `sourceLine` when symbols provide them; those locations and timestamps do not prove that local source matches the build.
+
+Symbol preferences persist until explicitly restored from `previous`. `symbolPath` is semicolon-separated and `symbolPathState` has one 0/1 character per path; for example a single local PDB directory uses mask `"1"`. Empty path/mask clears the search list. `loadSymbolsNow: true` requires a paused session and can use configured symbol servers; inspect module status for actual PDB loading. This may block during VS symbol loading and has no forced timeout or rollback.
 
 `editor_selection_get` returns one-based caret and selection coordinates from the active unsaved text buffer, with bounded selected text. No active text editor returns null data. Box selections report `blockSelection: true` and omit selected text. `project_items(project)` accepts an exact name or unique name and returns that unique name, IDE item hierarchy and available physical paths, bounded to 2,000 items and 64 levels.
 

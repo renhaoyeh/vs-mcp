@@ -38,9 +38,13 @@ public sealed class BridgeTests
         }));
         var tools = await client.ListToolsAsync();
         Assert.Contains(hostTrace, line => line.Contains(Path.Combine(Path.GetDirectoryName(executable)!, "coreclr.dll"), StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(60, tools.Count);
+        Assert.Equal(66, tools.Count);
         Assert.True(tools.Single(t => t.Name == "get_build_settings").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.False(tools.Single(t => t.Name == "set_build_settings").ProtocolTool.Annotations!.ReadOnlyHint);
+        Assert.True(tools.Single(t => t.Name == "debugger_list_modules").ProtocolTool.Annotations!.ReadOnlyHint);
+        Assert.True(tools.Single(t => t.Name == "debugger_get_exception").ProtocolTool.Annotations!.ReadOnlyHint);
+        Assert.False(tools.Single(t => t.Name == "debugger_open_dump").ProtocolTool.Annotations!.IdempotentHint);
+        Assert.False(tools.Single(t => t.Name == "debugger_save_dump").ProtocolTool.Annotations!.IdempotentHint);
         Assert.Contains(tools, tool => tool.Name == "show_vs_window");
         Assert.Contains(tools, tool => tool.Name == "project_unload");
         Assert.Contains(tools, tool => tool.Name == "project_reload");

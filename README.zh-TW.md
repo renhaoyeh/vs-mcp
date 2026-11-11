@@ -45,7 +45,7 @@
 
 ## 功能與工具一覽
 
-目前有 **58 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **64 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -57,6 +57,8 @@
 | 啟動與組態設定 | `startup_project_get`、`startup_project_set`、`build_configuration_set` | 讀取／明確設定啟動專案，或切換指定組態與平台；不會猜測其他設定。 |
 | 建置 | `build_projects`、`get_build_status`、`cancel_build` | 建置、清除或重建指定專案／方案資料夾；回傳依賴順序、各專案結果、錯誤及 Build Output，可等待、查詢及取消。 |
 | 建置設定 | `get_build_settings`、`set_build_settings` | 讀取或部分更新持續保存的平行數、輸出／記錄詳細度、執行／建置政策、低優先序及 C++ 計時／記錄。回傳支援狀態原因、執行個體身分與修改前／讀回值。修改需要閒置的 IDE。 |
+| VS dump 診斷 | `debugger_open_dump`、`debugger_save_dump`、`debugger_list_modules`、`debugger_get_exception` | 使用已連線 VS 偵錯現有 Windows minidump、不覆寫地儲存暫停程序的 dump，讀取引擎提供的模組／符號資訊及已觀察的例外事件。 |
+| PDB 偏好 | `debugger_get_symbol_settings`、`debugger_set_symbol_settings` | 讀取或明確更新持續保存的 PDB 搜尋路徑、啟用遮罩、快取及載入政策；立即載入符號需暫停的偵錯工作階段。回傳修改前／讀回值。 |
 | 編輯器文件 | `document_list`、`document_active`、`document_open`、`document_read`、`document_write`、`document_save`、`document_close` | 讀寫 IDE 內的文件，包含未儲存內容；回傳儲存／唯讀狀態，讀取時提供完整 buffer 的 SHA-256。 |
 | 精準修改 | `editor_replace` | 依原文進行區分大小寫的替換；核對 SHA-256，原文不存在、重複或版本過期時拒絕修改；支援明確指定全部替換。 |
 | 偵錯啟停與狀態 | `start_debugging`、`start_without_debugging`、`without_debugging_reconcile`、`stop_debugging`、`get_debug_status` | 啟停目前啟動專案，讀取 debugger mode、程序 PID／路徑及請求狀態；不會自行切換啟動專案或組態。 |
@@ -82,6 +84,14 @@
 這些偏好跨方案保存，不會自動還原；可保存 `previous` 快照後明確還原。例如 `set_build_settings(maxParallelProjectBuilds: 2, lowPriorityBuild: true, outputVerbosity: "minimal")` 降低專案同時建置數，並要求後續 IDE 建置使用低優先序。不限制 CPU／編譯器執行緒，也不直接修改既有程序優先權。跨設定提供者的更新不是交易，失敗時附修改前／目前快照。`updateStatus: "pendingApproval"` 表示 VS 原生設定要求尚未提交；C++ 計時／記錄不會在此時寫入，需等核准處理完成後再要求更新。原生要求處理完畢、發生錯誤或呼叫中斷後，應先讀取設定再決定是否重試。工具不會隱含更改目前組態或啟始專案。
 
 ## C++／C# 支援範圍
+
+已有 dump 時，可先視需要用 `debugger_set_symbol_settings` 設定 PDB，再呼叫 `debugger_open_dump(path)`。預設使用 VS 原生碼偵錯引擎；`engineGuid` 可明確指定其他已安裝且支援 dump 的引擎。工具檢查副檔名／標頭，並在啟動期間鎖住檔案避免被替換，直接將指定檔案交給 VS 偵錯器，不執行 F5、不替換方案或啟始專案。開啟是非同步要求：用 `get_debug_status.request` 與 `dumpRequest` 查詢；接受要求不代表 dump 已載入。暫停後可用 `debugger_get_exception`、`debugger_list_modules`、`debugger_get_callstack`、執行緒與區域變數工具檢查，最後用 `stop_debugging` 結束。Dump／引擎相容性依主機而定。
+
+`debugger_save_dump(path, processId, kind: "normal")` 透過 VS 擷取目前選取的暫停程序；`kind: "full"` 包含更多記憶體，檔案可能很大。目的檔案必須不存在；儲存／搬移失敗時保留暫存 dump 並回報路徑。呼叫中斷後，先檢查檔案與偵錯狀態再決定是否重試。本功能不查 WER／事件記錄、不自動搜尋 dump，也不依賴外部 cdb。
+
+模組版本、時間戳與符號位置取自 VS，不以較新的本機 DLL 代替。提供者使用已觀察的偵錯程序，或目前程序的自動化模組清單；該介面無法提供的欄位（包括自動化清單中的 program ID／時間戳）為 null，模組讀取錯誤會明確回報。例外資訊是目前暫停程序最後被觀察到的引擎事件，可能不存在，也不代表已證明 crash 或目前停止原因。堆疊在符號可用時提供 `sourcePath` 與從 1 起算的 `sourceLine`，這些位置與時間戳不保證本機原始碼與建置相符。
+
+符號偏好會持續保存，需從 `previous` 明確還原。`symbolPath` 以分號分隔，`symbolPathState` 每個路徑對應一個 0／1 字元，例如單一本機 PDB 目錄使用 `"1"`；空路徑／遮罩會清空搜尋清單。`loadSymbolsNow: true` 需要暫停的工作階段，可能使用已設定的符號伺服器，實際 PDB 載入結果應查模組狀態。VS 載入符號期間可能阻塞，沒有強制逾時或自動還原。
 
 `editor_selection_get` 從目前未儲存的文字 buffer 讀取游標與選取座標（從 1 開始），並限制回傳文字長度。沒有作用中的文字編輯器時 data 為 null；方塊選取會回傳 `blockSelection: true` 並省略選取文字。`project_items(project)` 接受精確名稱或 unique name，回傳 unique name、IDE 項目階層及可取得的實體路徑，最多 2,000 個項目、64 層。
 

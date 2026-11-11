@@ -31,6 +31,7 @@ namespace VsMcp.Services.VisualStudio
         private readonly JoinableTaskFactory _joinableTaskFactory;
         private DebugRunner _debugRunner;
         private WithoutDebuggingRunner _withoutDebugging;
+        public DebugEventObserver DebugEvents { get; }
         public WithoutDebuggingRunner WithoutDebugging() => _withoutDebugging ?? (_withoutDebugging = new WithoutDebuggingRunner(this));
         public JObject WithoutDebuggingStatus => _withoutDebugging?.Status;
 
@@ -38,6 +39,7 @@ namespace VsMcp.Services.VisualStudio
         {
             _dte = dte;
             _joinableTaskFactory = joinableTaskFactory;
+            if (dte != null) DebugEvents = new DebugEventObserver();
         }
 
         public DTE2 Dte => _dte;
