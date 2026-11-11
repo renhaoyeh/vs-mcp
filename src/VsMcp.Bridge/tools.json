@@ -2348,7 +2348,7 @@
     {
       "name": "errors_list",
       "title": "errors_list",
-      "description": "Read the Visual Studio Error List with optional severity, project and description filters. Severity is error, warning or message. Results are bounded.",
+      "description": "Read bounded diagnostics from the connected VS Error List data sources, including code, source, buildTool and producer identifiers when supplied. Severity is error/warning/message. code and source are exact case-insensitive filters; source is VS-reported Build/Other, never inferred as IntelliSense. producer matches buildTool or data-source identifier. Positions are one-based. isStable reports provider stability, not proof a background analysis finished. Missing extended fields are null. Falls back to legacy DTE with explicit backend/availability only when the table service is unavailable; extended filters are then rejected. Does not change Error List UI filters or start analysis/builds.",
       "readOnly": true,
       "destructive": false,
       "idempotent": true,
@@ -2371,6 +2371,18 @@
           "maxResults": {
             "type": "integer",
             "default": 200
+          },
+          "code": {
+            "type": "string",
+            "default": null
+          },
+          "source": {
+            "type": "string",
+            "default": null
+          },
+          "producer": {
+            "type": "string",
+            "default": null
           }
         }
       },
@@ -4414,7 +4426,7 @@
     {
       "name": "startup_project_set",
       "title": "startup_project_set",
-      "description": "Explicitly set a single startup project by exact name or unique name. Requires idle IDE; ambiguous names fail.",
+      "description": "Explicitly set startup projects in the connected idle IDE. Supply project for one project, or projects for an ordered list (an explicit empty list clears startup projects), never both. Every exact name/unique name must resolve uniquely before any write; duplicates are rejected. Reads back the complete startup list and returns previous values. Does not start debugging, build or switch configuration. After interruption inspect startup_project_get before retrying.",
       "readOnly": null,
       "destructive": null,
       "idempotent": null,
@@ -4423,12 +4435,17 @@
         "type": "object",
         "properties": {
           "project": {
-            "type": "string"
+            "type": "string",
+            "default": null
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": null
           }
-        },
-        "required": [
-          "project"
-        ]
+        }
       },
       "outputSchema": null
     },

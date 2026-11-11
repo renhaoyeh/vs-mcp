@@ -68,7 +68,7 @@
 | 斷點 | `debugger_add_breakpoint`、`debugger_list_breakpoints`、`breakpoint_enable`、`debugger_remove_breakpoint` | 新增檔案／行號斷點，可指定條件；列出、啟停及移除斷點。是否繫結仍取決於已載入的符號。 |
 | 偵錯環境選取 | `debugger_list_threads`、`debugger_select_thread`、`debugger_select_frame` | 列舉目前偵錯程式的執行緒；暫停時切換執行緒或堆疊 frame，並讀回確認選取結果。 |
 | 偵錯資料 | `debugger_get_locals`、`debugger_get_callstack`、`debugger_evaluate` | 暫停時讀取目前 frame 的區域變數、目前執行緒的呼叫堆疊，以及運算式結果；結果數量有上限。 |
-| 診斷 | `errors_list`、`output_list_panes`、`output_read` | 依嚴重度、專案與文字篩選 Error List；列出 Output panes 並讀取有長度上限的尾端內容。 |
+| 診斷 | `errors_list`、`output_list_panes`、`output_read` | 依嚴重度、專案、文字、精確錯誤碼／來源與產生工具篩選 Error List；回傳 VS 提供的工具與來源識別、提供者穩定狀態及截斷狀態。列出 Output panes 並讀取有長度上限的尾端內容。 |
 | 語意導覽 | `goto_definition`、`find_references` | 回傳符號定義／參考的檔案、起訖行列與截斷狀態；各語言的支援限制見下表。 |
 | 測試 | `test_run`、`test_status`、`test_cancel` | 執行指定的已建置測試 DLL／EXE，回傳 run ID、執行狀態、TRX 統計、個別結果、失敗訊息與堆疊；支援篩選、等待及取消。 |
 | 進階擴充 | `execute_code` | 在 VS UI thread 執行 C# method body，存取 DTE 與 VS services，回傳可序列化資料。此工具具有任意程式執行能力。 |
@@ -76,6 +76,10 @@
 `show_vs_window` 傳入 `visible: false` 可隱藏 VS，不會關閉 VS 或停止建置／偵錯。顯示時預設不呼叫前景啟用；傳入 `visible: true, activate: true` 才會明確要求啟用。`activationRequested` 表示已提出要求，不代表作業系統已將焦點切過去。這不是持續背景模式：目前開始偵錯仍會顯示並啟用 VS，VS 也可能在命中斷點時自行顯示。
 
 完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供。[src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) 保存產生的 IDE 工具目錄，讓橋接程式在 VS 尚未啟動時仍能提供固定的工具定義；連接時會核對實際 IDE 的工具目錄。
+
+`startup_project_set` 可用 `project` 指定單一專案，或用 `projects` 指定有順序的專案清單；明確傳入空清單可清除選取。寫入前會解析所有專案並拒絕重複項目，回傳原本清單與讀回結果，不會啟動或建置專案。
+
+`errors_list` 保留 Error List 提供者的 `code`、`source`、`buildTool`、`dataSource` 與 `sourceType`。`source` 是原生 `Build`／`Other` 分類；`Other` 不能證明診斷來自 IntelliSense。位置從 1 開始，缺少的欄位為 null。`isStable` 描述已訂閱提供者的狀態，不能證明分析已完成。若改用舊式 DTE，會回報 `extendedFieldsAvailable: false` 並拒絕延伸篩選條件。
 
 `start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.withoutDebuggingRequest` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
 

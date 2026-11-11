@@ -114,13 +114,29 @@ namespace VsMcp.Tools
             await vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
             return Result(new { projects = vs.Dte.Solution.SolutionBuild.StartupProjects });
         }
-        [McpServerTool(Name = "startup_project_set", Title = "startup_project_set"), Description("Explicitly set a single startup project by exact name or unique name. Requires idle IDE; ambiguous names fail.")]
-        public async Task<CallToolResult> SetStartupAsync(string project, CancellationToken cancellationToken = default)
+        [McpServerTool(Name = "startup_project_set", Title = "startup_project_set"), Description("Explicitly set startup projects in the connected idle IDE. Supply project for one project, or projects for an ordered list (an explicit empty list clears startup projects), never both. Every exact name/unique name must resolve uniquely before any write; duplicates are rejected. Reads back the complete startup list and returns previous values. Does not start debugging, build or switch configuration. After interruption inspect startup_project_get before retrying.")]
+        public async Task<CallToolResult> SetStartupAsync(string project = null, string[] projects = null, CancellationToken cancellationToken = default)
         {
             await vs.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken); Idle();
-            if (string.IsNullOrWhiteSpace(project)) throw new ArgumentException("Project is required.");
-            var unique = VsContext.ResolveProject(vs.EnumerateProjects(), project, vs.Instance());
-            vs.Dte.Solution.SolutionBuild.StartupProjects = new[] { unique }; return Result(new { projects = vs.Dte.Solution.SolutionBuild.StartupProjects });
+            if ((project == null) == (projects == null))
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Supply either project or projects, not both.", new JObject { ["instance"] = vs.Instance() });
+            var requested = projects ?? new[] { project };
+            if (!vs.Dte.Solution.IsOpen)
+                throw new McpToolException(ToolErrorCode.NoSolution, "Open a solution before setting startup projects.", new JObject { ["instance"] = vs.Instance() });
+            if (requested.Length > 100 || requested.Any(string.IsNullOrWhiteSpace))
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Supply at most 100 nonempty project names.", new JObject { ["instance"] = vs.Instance() });
+            var available = vs.EnumerateProjects().ToList();
+            var resolved = requested.Select(name => { ThreadHelper.ThrowIfNotOnUIThread(); return VsContext.ResolveProject(available, name, vs.Instance()); }).ToArray();
+            if (resolved.Distinct(StringComparer.OrdinalIgnoreCase).Count() != resolved.Length)
+                throw new McpToolException(ToolErrorCode.InvalidArgument, "Duplicate startup projects are not allowed.", new JObject { ["instance"] = vs.Instance() });
+            var previous = (vs.Dte.Solution.SolutionBuild.StartupProjects as Array)?.Cast<object>().Select(Convert.ToString).ToArray() ?? Array.Empty<string>();
+            cancellationToken.ThrowIfCancellationRequested();
+            vs.Dte.Solution.SolutionBuild.StartupProjects = resolved;
+            var actual = (vs.Dte.Solution.SolutionBuild.StartupProjects as Array)?.Cast<object>().Select(Convert.ToString).ToArray() ?? Array.Empty<string>();
+            if (!actual.SequenceEqual(resolved, StringComparer.OrdinalIgnoreCase))
+                throw new McpToolException(ToolErrorCode.ExecutionError, "Startup project update was not confirmed. Read startup_project_get before retrying.",
+                    new JObject { ["instance"] = vs.Instance(), ["previous"] = new JArray(previous), ["projects"] = new JArray(actual) });
+            return Result(new { projects = actual, previous });
         }
         [McpServerTool(Name = "build_configuration_set", Title = "build_configuration_set"), Description("Explicitly activate an exact solution configuration and platform pair while idle. No fallback; builds themselves never switch configuration.")]
         public async Task<CallToolResult> ConfigurationAsync(string configuration, string platform, CancellationToken cancellationToken = default)
