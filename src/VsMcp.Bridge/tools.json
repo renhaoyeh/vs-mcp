@@ -962,6 +962,149 @@
       "outputSchema": null
     },
     {
+      "name": "debugger_breakpoint_add",
+      "title": "Add advanced debugger breakpoint",
+      "description": "Add exactly one file, function, data or address breakpoint with optional condition and hit-count policy. Use kind=file/function/data/address and only the matching location fields. Returns a provider-scoped handle and Visual Studio readback; binding depends on the loaded symbols and debug engine. After interruption inspect debugger_breakpoint_list before retrying.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "functionName": {
+            "type": "string",
+            "default": ""
+          },
+          "path": {
+            "type": "string",
+            "default": ""
+          },
+          "line": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "column": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "language": {
+            "type": "string",
+            "default": ""
+          },
+          "dataExpression": {
+            "type": "string",
+            "default": ""
+          },
+          "dataCount": {
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "address": {
+            "type": "string",
+            "default": ""
+          },
+          "condition": {
+            "type": "string",
+            "default": ""
+          },
+          "conditionType": {
+            "type": "string",
+            "default": "whenTrue"
+          },
+          "hitCount": {
+            "type": "integer",
+            "default": 0,
+            "maximum": 2147483647
+          },
+          "hitCountType": {
+            "type": "string",
+            "default": "none"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_breakpoint_list",
+      "title": "List advanced debugger breakpoints",
+      "description": "List bounded top-level debugger breakpoints with exact per-provider handles when this tool added them, location, conditions, hit-count state, pending/bound/error type, bound address and binding errors when exposed by Breakpoint3. Unhandled engine properties can vary.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_breakpoint_remove",
+      "title": "Remove one debugger breakpoint",
+      "description": "Delete only the breakpoint with this exact per-provider handle returned by debugger_breakpoint_add/list. Never deletes by line or removes matching siblings. Reads back that the handle is absent; after interruption inspect debugger_breakpoint_list before retrying.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_breakpoint_update",
+      "title": "Update one debugger breakpoint",
+      "description": "Enable or disable only the breakpoint identified by its exact handle from debugger_breakpoint_add/list. Reads back the resulting state; the installed EnvDTE interfaces expose conditions as read-only, so this update changes only Enabled. It never selects breakpoints by line or changes sibling breakpoints.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "handle": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "handle",
+          "enabled"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
       "name": "debugger_continue",
       "title": "debugger_continue",
       "description": "Continue a paused debug session. Rejected in design mode, so this never starts a new session.",
@@ -974,6 +1117,184 @@
         "properties": {}
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_detach_process",
+      "title": "Detach debugger from one process",
+      "description": "Detach the debugger from only the exact debugged PID after verifying its absolute expectedPath. Requires a paused session and idle build/test state. This detaches the debugger and preserves the target process. Returns process readback or pending status; after interruption inspect debugger_processes and never blindly retry.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "type": "integer"
+          },
+          "expectedPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "processId",
+          "expectedPath"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_disassemble",
+      "title": "Disassemble the paused native frame",
+      "description": "Read a bounded instruction sequence from the selected paused thread/frame via the exact observed IDebugProgram2 disassembly stream and stack-frame code context. Requires the current processId. Does not change the instruction pointer, step or resume. Engines that do not provide a stream fail explicitly.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "description": "PID of the currently selected paused debug process.",
+            "type": "integer"
+          },
+          "frameIndex": {
+            "description": "One-based frame index in the current thread; defaults to the top frame.",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 256
+          },
+          "maxInstructions": {
+            "description": "Maximum instructions to return.",
+            "type": "integer",
+            "default": 32,
+            "minimum": 1,
+            "maximum": 256
+          }
+        },
+        "required": [
+          "processId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          },
+          "frameIndex": {
+            "type": "integer"
+          },
+          "requestedInstructions": {
+            "type": "integer"
+          },
+          "instructions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "address": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bytes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "opcode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "operands": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "symbol": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "backend": {
+            "description": "Disassembly is supplied by the current Visual Studio debug engine and may be unavailable for some targets or frames.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "contextId",
+          "processId",
+          "threadId",
+          "frameIndex",
+          "requestedInstructions",
+          "instructions",
+          "truncated"
+        ]
+      }
     },
     {
       "name": "debugger_evaluate",
@@ -996,6 +1317,88 @@
         },
         "required": [
           "expression"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_exception_policy_get",
+      "title": "Read debugger exception policy",
+      "description": "Discover exception groups with no groupName; discover that group's named settings and exact codes by providing groupName alone; or read one setting by exact groupName plus exceptionName or supported code. Uses bounded Count/Item access, never COM enumeration. maxResults is 1..500. Unsupported engines fail explicitly.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "groupName": {
+            "type": "string",
+            "default": null
+          },
+          "exceptionName": {
+            "type": "string",
+            "default": ""
+          },
+          "code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null
+          },
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_exception_policy_set",
+      "title": "Set debugger exception policy",
+      "description": "Set break-when-thrown and/or break-when-user-unhandled on one exact exception setting. Identify it by exact group plus name or a supported numeric code. Uses Debugger4.ExceptionGroups/ExceptionSettings setter methods and reacquires readback because ExceptionSetting objects are snapshots. Requires idle IDE; unsupported groups/engines fail explicitly.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "groupName": {
+            "type": "string"
+          },
+          "exceptionName": {
+            "type": "string",
+            "default": ""
+          },
+          "code": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null
+          },
+          "breakWhenThrown": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "breakWhenUserUnhandled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "groupName"
         ]
       },
       "outputSchema": null
@@ -1459,6 +1862,117 @@
       }
     },
     {
+      "name": "debugger_list_native_transports",
+      "title": "List debugger transports and engines",
+      "description": "Enumerate transports and the debugger engines installed for each transport through Debugger2 in the connected Visual Studio instance. Includes local/default transports when VS exposes them. Does not attach, launch or alter debugger settings.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "transports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "engines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "id": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "attachResult": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "transports"
+        ]
+      }
+    },
+    {
       "name": "debugger_list_threads",
       "title": "List debugger threads",
       "description": "List bounded threads in the current debug program while paused, with processId, threadId, name, isCurrent and contextId. Does not switch processes/programs, freeze threads or resume execution. contextId expires on continue/step or debugger mode changes; pass it to selection tools. Engine-dependent thread enumeration failures are reported, never replaced with OS process threads.",
@@ -1478,6 +1992,128 @@
         }
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_load_module_symbols",
+      "title": "Load symbols for a paused module",
+      "description": "Request PDB loading for exactly one module in the currently selected paused debug process through Process3.Modules and EnvDTE90.Module.LoadSymbols. processId must equal the current process; moduleName is exact and modulePath can disambiguate duplicate names. pdbPath is optional and, when supplied, must be an existing absolute PDB path. Reads back SymbolFile. Visual Studio can ignore pdbPath when symbols are already visible on its configured search path; a load request or readback does not prove that the requested PDB was used or matches the module. Suppresses symbol-load UI for this call, restores the prior setting, and never resumes the target.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": true,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "description": "PID of the currently selected paused debug process.",
+            "type": "integer"
+          },
+          "moduleName": {
+            "description": "Exact module name from the current Process3.Modules collection.",
+            "type": "string"
+          },
+          "modulePath": {
+            "description": "Optional exact absolute loaded-module path, used to disambiguate duplicate names.",
+            "type": "string",
+            "default": null
+          },
+          "pdbPath": {
+            "description": "Optional exact absolute PDB path. Visual Studio may ignore it if symbols are already visible on its configured search path.",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "processId",
+          "moduleName"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "moduleName": {
+            "type": "string"
+          },
+          "modulePath": {
+            "type": "string"
+          },
+          "requestedPdbPath": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actualSymbolFile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loadRequested": {
+            "type": "boolean"
+          },
+          "note": {
+            "description": "A load request does not prove that the requested PDB was used or matches the loaded module. VS can keep symbols already found on its configured search path and ignore RequestedPdbPath.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "contextId",
+          "processId",
+          "moduleName",
+          "modulePath"
+        ]
+      }
     },
     {
       "name": "debugger_open_dump",
@@ -1503,6 +2139,336 @@
         ]
       },
       "outputSchema": null
+    },
+    {
+      "name": "debugger_processes",
+      "title": "List debugger processes",
+      "description": "List bounded local processes visible to the connected debugger and processes already being debugged, including exact PID, image path when accessible, current selection, debug mode, and instance identity. Does not attach or switch processes.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxResults": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_read_native_memory",
+      "title": "Read paused native memory",
+      "description": "Read a bounded number of bytes either from an exact local variable's IDebugProperty2.GetMemoryContext or from a hexadecimal address derived from the selected frame's code context; bytes are read by the observed process's IDebugProgram2.GetMemoryBytes. When property enumeration is unavailable, variableName is restricted to one identifier and parsed as an address-of expression with EVAL_NOFUNCEVAL and EVAL_NOSIDEEFFECTS. Supply exactly one of variableName/address. Reports partial bytes for inaccessible/unmapped ranges. Never uses OS process-memory APIs, writes memory or resumes execution.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "description": "PID of the currently selected paused debug process.",
+            "type": "integer"
+          },
+          "variableName": {
+            "description": "Optional exact local variable name in the selected frame; the engine must expose its memory context. Supply exactly one of variableName/address.",
+            "type": "string",
+            "default": null
+          },
+          "address": {
+            "description": "Optional hexadecimal target address, such as 0x7FF600001000; derived relative to the selected frame's engine code context. Supply exactly one of variableName/address.",
+            "type": "string",
+            "default": null
+          },
+          "byteCount": {
+            "description": "Maximum bytes to request from the debugger engine.",
+            "type": "integer",
+            "default": 16,
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "frameIndex": {
+            "description": "One-based frame index in the current thread; defaults to the top frame.",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 256
+          }
+        },
+        "required": [
+          "processId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          },
+          "frameIndex": {
+            "type": "integer"
+          },
+          "variableName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requestedBytes": {
+            "type": "integer"
+          },
+          "bytesRead": {
+            "type": "integer"
+          },
+          "hexBytes": {
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "unreadableBytes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backend": {
+            "description": "Reads only from the paused debug engine's memory interface. Results can be partial at inaccessible or unmapped ranges; no OS process-memory API is used.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "contextId",
+          "processId",
+          "threadId",
+          "frameIndex",
+          "requestedBytes",
+          "bytesRead",
+          "hexBytes",
+          "partial"
+        ]
+      }
+    },
+    {
+      "name": "debugger_read_registers",
+      "title": "Read paused native registers",
+      "description": "Read bounded CPU registers for the selected paused stack frame through IDebugStackFrame2.EnumProperties with the standard register filter. If the engine omits that filter, use the selected frame's expression context with a fixed architecture register allowlist and EVAL_NOFUNCEVAL/EVAL_NOSIDEEFFECTS. No caller expression is accepted; returns Supported=false when the engine exposes neither path. Does not write registers or resume execution.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "processId": {
+            "description": "PID of the currently selected paused debug process.",
+            "type": "integer"
+          },
+          "frameIndex": {
+            "description": "One-based frame index in the current thread; defaults to the top frame.",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 256
+          },
+          "maxRegisters": {
+            "description": "Maximum register properties to return.",
+            "type": "integer",
+            "default": 128,
+            "minimum": 1,
+            "maximum": 256
+          }
+        },
+        "required": [
+          "processId"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          },
+          "frameIndex": {
+            "type": "integer"
+          },
+          "registers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "attributes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "unsupportedReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backend": {
+            "description": "Registers are read through the engine's stack-frame register filter or selected-frame expression context with calls and side effects disabled; no register is changed.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance",
+          "contextId",
+          "processId",
+          "threadId",
+          "frameIndex",
+          "registers",
+          "supported",
+          "truncated"
+        ]
+      }
     },
     {
       "name": "debugger_remove_breakpoint",
@@ -1668,6 +2634,35 @@
           "processId",
           "threadId",
           "frameIndex"
+        ]
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_select_process",
+      "title": "Select debugger process",
+      "description": "Select an exact process already debugged by this Visual Studio instance. Requires the current paused contextId and exact processId/expectedPath from debugger_processes. Does not attach, detach, resume, or terminate. Reads back CurrentProcess and invalidates the prior break context; read threads/call stack again afterward.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "expectedPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contextId",
+          "processId",
+          "expectedPath"
         ]
       },
       "outputSchema": null
@@ -1864,6 +2859,64 @@
       "inputSchema": {
         "type": "object",
         "properties": {}
+      },
+      "outputSchema": null
+    },
+    {
+      "name": "debugger_variables",
+      "title": "Expand debugger variables",
+      "description": "Expand an expression and bounded DataMembers tree in the selected paused frame, and/or include arguments from the one-based frameIndex in the current thread call stack. Requires contextId/processId/threadId/frameIndex from debugger_get_callstack. Expression expansion requires that frameIndex is the exact selected frame; arguments are read directly from that indexed frame without changing selection. Expression evaluation/getters may execute debuggee code or have side effects. maxDepth is 0..8, maxNodes 1..500. timeoutMilliseconds (1..10000) applies to the root DTE expression evaluation only; argument and child reads do not have a guaranteed overall operation timeout.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "contextId": {
+            "type": "string"
+          },
+          "processId": {
+            "type": "integer"
+          },
+          "threadId": {
+            "type": "integer"
+          },
+          "frameIndex": {
+            "type": "integer"
+          },
+          "expression": {
+            "type": "string",
+            "default": ""
+          },
+          "includeArguments": {
+            "type": "boolean",
+            "default": false
+          },
+          "maxDepth": {
+            "type": "integer",
+            "default": 2,
+            "maximum": 8
+          },
+          "maxNodes": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 500
+          },
+          "timeoutMilliseconds": {
+            "type": "integer",
+            "default": 1000,
+            "minimum": 1,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "contextId",
+          "processId",
+          "threadId",
+          "frameIndex"
+        ]
       },
       "outputSchema": null
     },

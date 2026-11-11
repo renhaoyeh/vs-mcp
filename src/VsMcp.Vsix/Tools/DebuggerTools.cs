@@ -158,7 +158,15 @@ namespace VsMcp.Tools
             if (target == null) throw new McpToolException(ToolErrorCode.InvalidArgument, "Frame index is outside the current call stack.");
             var expected = target as EnvDTE90a.StackFrame2 ?? throw new McpToolException(ToolErrorCode.NotSupported, "This debug engine does not expose stack frame depth.");
             var depth = expected.Depth;
-            debugger.CurrentStackFrame = target;
+            try { debugger.CurrentStackFrame = target; }
+            catch (Exception error) when (error is COMException || error is NotImplementedException || error is ArgumentException)
+            {
+                throw new McpToolException(ToolErrorCode.ExecutionError,
+                    "The debug engine did not confirm frame selection. Read debugger_get_callstack before retrying. " +
+                    error.GetType().Name + " (0x" + error.HResult.ToString("X8") + "): " + error.Message,
+                    new JObject { ["instance"] = vs.Instance(), ["contextId"] = contextId,
+                        ["processId"] = processId, ["threadId"] = threadId, ["frameIndex"] = frameIndex });
+            }
             RequireContext(contextId, processId, threadId);
             var actual = debugger.CurrentStackFrame;
             if (!(actual is EnvDTE90a.StackFrame2 selected) || selected.Depth != depth)

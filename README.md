@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **70 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **85 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -67,6 +67,11 @@ There are **70 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Additional IDE queries | `editor_selection_get`, `project_items`, `test_discover` | Read the active selection, enumerate project membership and discover tests from built containers without running them. |
 | C++ configuration and launch | `cpp_configuration_get`, `cpp_launch_settings_get`, `cpp_launch_settings_set` | Read raw/evaluated project or file settings, and read or explicitly patch project launch settings. Exact configuration/platform selectors never activate a configuration; omitted selectors use VS's active project mapping. |
 | Project outputs and membership | `project_outputs`, `project_item_add`, `project_item_remove` | Read project-system output paths without building; include an existing file in a project/filter, or exclude one exact hierarchy item while retaining the physical file. |
+| Debug processes | `debugger_processes`, `debugger_select_process`, `debugger_detach_process` | List local and debugged processes, select one attached process in a paused context, or detach one exact PID/path while keeping the process alive. |
+| Variable expansion | `debugger_variables` | Read bounded expression children in the selected frame, or arguments from an indexed frame without selecting it. Requires an exact paused context/process/thread. Evaluation and getters may execute debuggee code; the timeout applies to root expression evaluation, not the entire traversal. |
+| Advanced breakpoints | `debugger_breakpoint_add`, `debugger_breakpoint_list`, `debugger_breakpoint_update`, `debugger_breakpoint_remove` | Add file, function, data or address breakpoints with conditions/hit counts; inspect binding and update/remove one exact handle. Availability depends on the debugger engine. |
+| Exception policy | `debugger_exception_policy_get`, `debugger_exception_policy_set` | Discover bounded exception groups/settings without assuming localized names; read or explicitly update one exact exception's break-when-thrown/user-unhandled policy. |
+| Native engine inspection | `debugger_list_native_transports`, `debugger_load_module_symbols`, `debugger_read_native_memory`, `debugger_disassemble`, `debugger_read_registers` | Enumerate installed transports/engines, request symbols for one module, and read bounded memory, instructions and registers through the connected VS debugger. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
 | Debug context | `debugger_list_threads`, `debugger_select_thread`, `debugger_select_frame` | List threads in the current debug program and select a thread or stack frame while paused; verify selection by reading it back. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |
@@ -84,6 +89,8 @@ The official MCP SDK generates parameter definitions, defaults and result schema
 `errors_list` preserves the Error List provider's `code`, `source`, `buildTool`, `dataSource` and `sourceType`. `source` is the native `Build`/`Other` classification: `Other` does not establish that a diagnostic came from IntelliSense. Positions are one-based; absent fields are null. `isStable` describes the subscribed providers and does not prove analysis is complete. A legacy DTE fallback advertises `extendedFieldsAvailable: false` and rejects extended filters.
 
 `cpp_launch_settings_set` patches only supplied command, arguments, working directory, environment, merge flag and debugger type (`auto`, `nativeOnly`, `managedOnly`, `mixed`, `managedCore`, `nativeWithManagedCore`). Project settings and file-membership mutations require an idle IDE and saved state, and save the target project after writing. Save the previous launch values to restore them explicitly. `project_item_remove` excludes one file reference; it does not delete its physical file. Inspect readback and project membership after interrupted mutations before retrying.
+
+Native inspection operates on the selected paused process/thread and a one-based frame index. Memory reads accept one exact local variable or hexadecimal address, up to 4,096 bytes; disassembly and register lists are bounded. These operations use VS debug-engine interfaces. Missing engine capabilities are reported explicitly. Per-module PDB loading returns the actual symbol file reported by VS; VS can ignore a requested PDB path when symbols are already on its search path.
 
 `show_vs_window` with `visible: false` hides VS without closing it or stopping builds/debugging. Showing defaults to no explicit activation; pass `visible: true, activate: true` to request foreground activation. `activationRequested` reports the request, not proof of OS foreground focus. This tool does not establish a persistent background mode: starting debugging currently shows and activates VS, and VS can show itself on a breakpoint.
 

@@ -163,6 +163,17 @@ namespace VsMcp.Services.Debugging
             }
             return result;
         }
+        internal IDebugProgram2 GetProgram(int pid, string processName, string programName)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            KeyValuePair<Guid, ProgramEntry>[] selected;
+            lock (gate) selected = Select(pid, processName, programName);
+            if (selected.Length == 0)
+                throw new McpToolException(ToolErrorCode.NotSupported, "No exact observed debug program is available for the current process. Start or attach a new session with this extension loaded. " + error);
+            if (selected.Length != 1)
+                throw new McpToolException(ToolErrorCode.NotSupported, "The current process maps to multiple observed debug programs; native inspection requires an unambiguous program.");
+            return selected[0].Value.Program;
+        }
         public void Dispose()
         {
             ThreadHelper.ThrowIfNotOnUIThread();

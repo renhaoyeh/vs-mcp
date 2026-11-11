@@ -108,6 +108,28 @@ The extension targets net472 using Microsoft.VisualStudio.SDK 17.14.40265, Micro
 
 Compiler/analyzer dependency warnings inherited from the SDK/host combination remain visible; passing compilation alone does not establish runtime compatibility.
 
+## VS-native workflow coverage
+
+On 2026-11-11, the 85-tool IDE catalog/check (87 with bridge controls), Release VSIX, protocol harness, 28 unit tests and 11 bridge tests passed on VS 2026 Professional 18.6.11822.322. The complete experimental-hive run passed 82 of 83 integration cases, including all 19 added workflow cases. The remaining real-stdio deployment case is blocked by an existing client holding the shared bridge deployment lease: the older deployed bridge lacks `hostfxr.dll`. The new VSIX contains `hostfxr.dll`, `coreclr.dll` and 195 bridge/runtime files, and standalone bridge tests pass. The normal IDE and existing clients were preserved; validation used the isolated `VsMcpTests` hive and private desktop.
+
+Live coverage includes C++ project/file raw and evaluated settings with macro restoration, local debugger-rule settings and engine restoration, C++/managed output paths, empty filters and file-preserving exclusion, multiple startup projects, Error List codes/source, exact process selection/detach, indexed-frame arguments without selection, advanced breakpoint handles, Win32/CLR exception inventory and policy restoration, per-module symbol readback, counter bytes, instruction-address bytes, disassembly and scalar x64 registers. Modern VS shims expose several legacy methods that throw or return `E_NOTIMPL`; the tools use verified rule storage, indexed COM collections and exact-frame expression contexts where necessary. Register/local fallbacks request `EVAL_NOFUNCEVAL | EVAL_NOSIDEEFFECTS`; these flags are engine constraints, not a sandbox. Breakpoint updates support enabling/disabling; conditions and hit policies are supplied when adding a breakpoint. Other architectures/engines and the new inspection tools against dump sessions remain unverified.
+
+Keep this checklist aligned with the tool catalog and live integration tests when extending workflows. A tool declaration or successful standalone build alone does not establish host/engine support.
+
+| Workflow | Native API boundary | Live verification |
+| --- | --- | --- |
+| C++ project/file configuration | Visual C++ project engine; exact configuration/platform, no activation | `NativeProjectWorkflowTests` |
+| C++ launch settings | Native debug settings; omitted fields preserved, previous/readback | `NativeProjectWorkflowTests` |
+| Project outputs and file membership | Project-system outputs, DTE hierarchy, exclude without disk deletion | `ProjectWorkflowTests.cs` |
+| Multiple startup projects | One DTE startup array write after resolving every project | `WorkflowSupportTests` |
+| Error codes and producers | Error Table sources/snapshots; DTE fallback explicitly identified | `WorkflowSupportTests` |
+| Processes, variables and advanced breakpoints | Connected debugger; exact PID/path, frame context and breakpoint handles | `DebuggerWorkflowTests` |
+| Exception break policy | Debugger exception groups and snapshot setters | `DebuggerWorkflowTests` |
+| Transports and per-module PDB requests | Debugger2 transports and Process3 modules | `NativeInspectionTests` |
+| Memory, registers and disassembly | Observed AD7 program, matching current thread and indexed frame | `NativeInspectionTests` |
+
+These tools do not use WER, external dump debuggers or OS process-memory APIs. Workload- and engine-specific failures must stay explicit. A module symbol-load request is not evidence that VS accepted a particular PDB's identity; preserve actual symbol-path readback and the native API's search-path caveat.
+
 ## Earlier release validation
 
 An earlier 0.4.0 build was installed into Visual Studio 2026 Community's experimental hive (18.11.12328.437). At that baseline, all 45 integration tests, 11 bridge tests and 9 unit tests passed, along with the HTTP harness and live SDK catalog comparison. Both native C++ and managed C# debugger inspection were exercised against real processes, along with explicit stdio selection between two running VS instances using automatic ports. The managed debug fixture targets .NET 10 and requires the development SDK/runtime, independently of the bridge's self-contained deployment.

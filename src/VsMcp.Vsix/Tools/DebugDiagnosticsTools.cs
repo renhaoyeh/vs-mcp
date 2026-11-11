@@ -100,11 +100,14 @@ namespace VsMcp.Tools
                 if (!(debugger.CurrentProcess is EnvDTE90.Process3 process)) throw Error(ToolErrorCode.NotSupported, ex.Message);
                 var modules = process.Modules;
                 result = new DebugModulesOutput { ProcessId = process.ProcessID, Truncated = modules.Count > maxModules };
-                foreach (EnvDTE90.Module module in modules.Cast<EnvDTE90.Module>().Take(maxModules))
+                // Some debugger automation collections expose Count/Item but their
+                // COM enumerator raises TYPE_E_ELEMENTNOTFOUND.
+                for (var index = 1; index <= Math.Min(modules.Count, maxModules); index++)
                 {
                     var item = new DebugModuleInfo();
                     try
                     {
+                        var module = modules.Item(index);
                         item.Name = module.Name; item.Path = module.Path; item.Version = module.Version;
                         item.SymbolPath = module.SymbolFile; item.LoadAddress = "0x" + module.LoadAddress.ToString("X");
                     }

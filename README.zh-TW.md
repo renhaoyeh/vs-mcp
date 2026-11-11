@@ -45,7 +45,7 @@
 
 ## 功能與工具一覽
 
-目前有 **70 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **85 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -71,6 +71,11 @@
 | 診斷 | `errors_list`、`output_list_panes`、`output_read` | 依嚴重度、專案、文字、精確錯誤碼／來源與產生工具篩選 Error List；回傳 VS 提供的工具與來源識別、提供者穩定狀態及截斷狀態。列出 Output panes 並讀取有長度上限的尾端內容。 |
 | C++ 設定與啟動 | `cpp_configuration_get`、`cpp_launch_settings_get`、`cpp_launch_settings_set` | 讀取專案／檔案設定的原始與展開值，並讀取或明確修改專案啟動設定。指定組態／平台不會啟用它；省略時使用 VS 目前的專案對應。 |
 | 專案輸出與項目 | `project_outputs`、`project_item_add`、`project_item_remove` | 不經建置讀取專案系統提供的輸出路徑；把現有檔案加入專案／filter，或以精確階層路徑排除項目並保留實體檔案。 |
+| 偵錯程序 | `debugger_processes`、`debugger_select_process`、`debugger_detach_process` | 列出本機與已偵錯程序，在暫停內容中選取已附加程序，或以精確 PID／路徑卸離並保留程序。 |
+| 變數展開 | `debugger_variables` | 在目前框架展開有上限的運算式子項目，或直接讀取指定框架的參數而不切換選取。需要精確的暫停內容／程序／執行緒；求值與 getter 可能執行受偵錯程式碼，逾時只限制最初運算式求值，不保證整段展開的總時間。 |
+| 進階斷點 | `debugger_breakpoint_add`、`debugger_breakpoint_list`、`debugger_breakpoint_update`、`debugger_breakpoint_remove` | 新增檔案、函式、資料或位址斷點及條件／命中次數；查詢綁定狀態，並以精確 handle 更新／移除單一斷點。支援程度依偵錯引擎而異。 |
+| 例外中斷原則 | `debugger_exception_policy_get`、`debugger_exception_policy_set` | 先查詢有上限的例外群組／設定，避免猜測本地化名稱；讀取或明確修改單一例外的擲回／使用者未處理時中斷原則。 |
+| 原生引擎檢查 | `debugger_list_native_transports`、`debugger_load_module_symbols`、`debugger_read_native_memory`、`debugger_disassemble`、`debugger_read_registers` | 列出已安裝的 transport／引擎，要求載入單一模組符號，並透過目前連接的 VS 偵錯器讀取有上限的記憶體、指令與暫存器。 |
 | 語意導覽 | `goto_definition`、`find_references` | 回傳符號定義／參考的檔案、起訖行列與截斷狀態；各語言的支援限制見下表。 |
 | 測試 | `test_run`、`test_status`、`test_cancel` | 執行指定的已建置測試 DLL／EXE，回傳 run ID、執行狀態、TRX 統計、個別結果、失敗訊息與堆疊；支援篩選、等待及取消。 |
 | 進階擴充 | `execute_code` | 在 VS UI thread 執行 C# method body，存取 DTE 與 VS services，回傳可序列化資料。此工具具有任意程式執行能力。 |
@@ -84,6 +89,8 @@
 `errors_list` 保留 Error List 提供者的 `code`、`source`、`buildTool`、`dataSource` 與 `sourceType`。`source` 是原生 `Build`／`Other` 分類；`Other` 不能證明診斷來自 IntelliSense。位置從 1 開始，缺少的欄位為 null。`isStable` 描述已訂閱提供者的狀態，不能證明分析已完成。若改用舊式 DTE，會回報 `extendedFieldsAvailable: false` 並拒絕延伸篩選條件。
 
 `cpp_launch_settings_set` 只修改明確提供的命令、參數、工作目錄、環境變數、合併旗標與偵錯引擎類型（`auto`、`nativeOnly`、`managedOnly`、`mixed`、`managedCore`、`nativeWithManagedCore`）。專案設定與檔案項目修改需要 IDE 閒置且狀態已儲存，寫入後會儲存目標專案。可保存原本啟動設定後明確還原。`project_item_remove` 排除單一檔案參照，不會刪除實體檔案。修改中斷後，應先檢查設定讀回結果與專案項目，再決定是否重試。
+
+原生檢查使用目前選取的暫停程序／執行緒，以及從 1 開始的堆疊框架索引。記憶體可指定精確區域變數或十六進位位址，最多讀取 4,096 bytes；反組譯與暫存器清單也有上限。這些操作使用 VS 偵錯引擎介面，缺少引擎能力會明確回報。單一模組 PDB 載入會回傳 VS 回報的實際符號檔；符號已在搜尋路徑上時，VS 可能忽略指定的 PDB 路徑。
 
 `start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.withoutDebuggingRequest` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
 

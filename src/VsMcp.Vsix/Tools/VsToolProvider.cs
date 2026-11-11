@@ -39,7 +39,7 @@ namespace VsMcp.Tools
             context.TestsRunning = () => tests.IsRunning;
             Tools = ToolJson.CreateTools(new SolutionTools(context), new BuildTools(context), new DebugTools(context), new CodeTools(context),
                 new DocumentTools(context, new DocumentService(dte)), new SolutionManagementTools(context), new DiagnosticsTools(context), new DebuggerTools(context), new DebugDiagnosticsTools(context),
-                new ProjectWorkflowTools(context),
+                new ProjectWorkflowTools(context), new DebuggerWorkflowTools(context), new NativeInspectionTools(context),
                 new NavigationTools(context, new NavigationService(new RoslynNavigationService(RoslynNavigationService.GetWorkspace), new NativeNavigationService())), new TestTools(context, tests, new TestDiscoveryService(executor)), new ProjectItemsTools(context));
         }
 
