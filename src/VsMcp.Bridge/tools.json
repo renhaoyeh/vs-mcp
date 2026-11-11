@@ -1892,6 +1892,287 @@
       }
     },
     {
+      "name": "get_build_settings",
+      "title": "Get build settings",
+      "description": "Read the connected IDE's persistent build and run preferences: project parallelism, output/log verbosity, startup dependency build policy, out-of-date/build-error launch policies, low-priority builds, native stop-after-first-failure policy and C++ build timing/logging. Includes instance identity and unsupportedSettings reasons; null values are unavailable, not false/defaults. Works without an open solution; support depends on host version and installed workloads. No CPU usage limit is provided.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "updateStatus": {
+            "type": "string",
+            "enum": [
+              "read",
+              "unchanged",
+              "applied",
+              "pendingApproval"
+            ]
+          },
+          "unsupportedSettings": {
+            "description": "Unavailable setting names and reasons. Null values must not be treated as false or defaults.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "previous": {
+            "description": "Snapshot before an update; null for reads. Updates are not transactional across settings providers.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "maxParallelProjectBuilds": {
+                "description": "Maximum parallel projects; not a CPU or compiler thread limit. Null when unsupported.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "outputVerbosity": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "quiet",
+                  "minimal",
+                  "normal",
+                  "detailed",
+                  "diagnostic",
+                  null
+                ]
+              },
+              "logFileVerbosity": {
+                "description": "C++ MSBuild log file verbosity.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "quiet",
+                  "minimal",
+                  "normal",
+                  "detailed",
+                  "diagnostic",
+                  null
+                ]
+              },
+              "onlyBuildStartupProjectsAndDependencies": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "onRunWhenOutOfDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "alwaysBuild",
+                  "neverBuild",
+                  "promptToBuild",
+                  null
+                ]
+              },
+              "onRunWhenBuildErrors": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "launchOld",
+                  "doNotLaunch",
+                  "promptToLaunch",
+                  null
+                ]
+              },
+              "lowPriorityBuild": {
+                "description": "IDE preference for subsequent builds; does not change the priority of existing processes.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "stopSolutionBuildAfterFirstFailure": {
+                "description": "Native VS solution-build policy, available on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "cppBuildTiming": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "cppBuildLogging": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "previousMaxParallelProjectBuilds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxParallelProjectBuilds": {
+            "description": "Maximum parallel projects; not a CPU or compiler thread limit. Null when unsupported.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outputVerbosity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ]
+          },
+          "logFileVerbosity": {
+            "description": "C++ MSBuild log file verbosity.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ]
+          },
+          "onlyBuildStartupProjectsAndDependencies": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "onRunWhenOutOfDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "alwaysBuild",
+              "neverBuild",
+              "promptToBuild",
+              null
+            ]
+          },
+          "onRunWhenBuildErrors": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "launchOld",
+              "doNotLaunch",
+              "promptToLaunch",
+              null
+            ]
+          },
+          "lowPriorityBuild": {
+            "description": "IDE preference for subsequent builds; does not change the priority of existing processes.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "stopSolutionBuildAfterFirstFailure": {
+            "description": "Native VS solution-build policy, available on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "cppBuildTiming": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "cppBuildLogging": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "updateStatus",
+          "unsupportedSettings"
+        ]
+      }
+    },
+    {
       "name": "get_build_status",
       "title": "Get build status",
       "description": "Report the most recent build started by build_projects: 'status' (running, succeeded, failed or cancelled), per-project results, errors and the tail of the Build output. Use it to collect the result of a build that was still 'running' when build_projects returned. The output and errors are read from Visual Studio's Build output and Error List when you call, so they describe the latest build in the IDE. Read-only. Fails with NO_BUILD if no build was started yet.",
@@ -2965,6 +3246,398 @@
         ]
       },
       "outputSchema": null
+    },
+    {
+      "name": "set_build_settings",
+      "title": "Set build settings",
+      "description": "Update only the specified persistent build and run preferences in the connected idle IDE. Supply at least one field. All requested settings must be readable/supported before any write. Returns instance identity, previous snapshot and read-back values. Settings affect subsequent operations across solutions and are not restored automatically; save previous to restore explicitly. No build, launch, active configuration or startup project change is performed. Low priority is an IDE build preference, not an OS process-priority mutation or CPU cap. Updates across settings providers are not transactional. updateStatus pendingApproval means native VS approval is unresolved and C++ timing/logging updates were not applied; inspect/resolve the VS request and read settings before issuing further updates. After errors or interruption, read get_build_settings before retrying.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "maxParallelProjectBuilds": {
+            "description": "Positive maximum concurrent project builds; host validates its supported range. Not a compiler-thread or CPU cap.",
+            "type": [
+              "integer",
+              "null"
+            ],
+            "default": null,
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "outputVerbosity": {
+            "description": "MSBuild Output window detail: quiet, minimal, normal, detailed or diagnostic.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ],
+            "default": null
+          },
+          "logFileVerbosity": {
+            "description": "C++ MSBuild log file detail: quiet, minimal, normal, detailed or diagnostic.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ],
+            "default": null
+          },
+          "onlyBuildStartupProjectsAndDependencies": {
+            "description": "On F5/Ctrl+F5, build only startup projects and their dependencies.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "onRunWhenOutOfDate": {
+            "description": "C++ out-of-date launch policy: alwaysBuild, neverBuild or promptToBuild.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "alwaysBuild",
+              "neverBuild",
+              "promptToBuild",
+              null
+            ],
+            "default": null
+          },
+          "onRunWhenBuildErrors": {
+            "description": "C++ failed-build launch policy: launchOld, doNotLaunch or promptToLaunch. launchOld can run stale binaries.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "launchOld",
+              "doNotLaunch",
+              "promptToLaunch",
+              null
+            ],
+            "default": null
+          },
+          "lowPriorityBuild": {
+            "description": "Run subsequent IDE builds at low process priority; existing processes are not modified directly.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "stopSolutionBuildAfterFirstFailure": {
+            "description": "Native solution-build stop policy on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "cppBuildTiming": {
+            "description": "Show C++ build tool timings.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "cppBuildLogging": {
+            "description": "Enable C++ build activity log files.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "updateStatus": {
+            "type": "string",
+            "enum": [
+              "read",
+              "unchanged",
+              "applied",
+              "pendingApproval"
+            ]
+          },
+          "unsupportedSettings": {
+            "description": "Unavailable setting names and reasons. Null values must not be treated as false or defaults.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "previous": {
+            "description": "Snapshot before an update; null for reads. Updates are not transactional across settings providers.",
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "maxParallelProjectBuilds": {
+                "description": "Maximum parallel projects; not a CPU or compiler thread limit. Null when unsupported.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "outputVerbosity": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "quiet",
+                  "minimal",
+                  "normal",
+                  "detailed",
+                  "diagnostic",
+                  null
+                ]
+              },
+              "logFileVerbosity": {
+                "description": "C++ MSBuild log file verbosity.",
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "quiet",
+                  "minimal",
+                  "normal",
+                  "detailed",
+                  "diagnostic",
+                  null
+                ]
+              },
+              "onlyBuildStartupProjectsAndDependencies": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "onRunWhenOutOfDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "alwaysBuild",
+                  "neverBuild",
+                  "promptToBuild",
+                  null
+                ]
+              },
+              "onRunWhenBuildErrors": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "launchOld",
+                  "doNotLaunch",
+                  "promptToLaunch",
+                  null
+                ]
+              },
+              "lowPriorityBuild": {
+                "description": "IDE preference for subsequent builds; does not change the priority of existing processes.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "stopSolutionBuildAfterFirstFailure": {
+                "description": "Native VS solution-build policy, available on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "cppBuildTiming": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "cppBuildLogging": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          },
+          "previousMaxParallelProjectBuilds": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxParallelProjectBuilds": {
+            "description": "Maximum parallel projects; not a CPU or compiler thread limit. Null when unsupported.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "outputVerbosity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ]
+          },
+          "logFileVerbosity": {
+            "description": "C++ MSBuild log file verbosity.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "quiet",
+              "minimal",
+              "normal",
+              "detailed",
+              "diagnostic",
+              null
+            ]
+          },
+          "onlyBuildStartupProjectsAndDependencies": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "onRunWhenOutOfDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "alwaysBuild",
+              "neverBuild",
+              "promptToBuild",
+              null
+            ]
+          },
+          "onRunWhenBuildErrors": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "launchOld",
+              "doNotLaunch",
+              "promptToLaunch",
+              null
+            ]
+          },
+          "lowPriorityBuild": {
+            "description": "IDE preference for subsequent builds; does not change the priority of existing processes.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "stopSolutionBuildAfterFirstFailure": {
+            "description": "Native VS solution-build policy, available on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "cppBuildTiming": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "cppBuildLogging": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "instance",
+          "updateStatus",
+          "unsupportedSettings"
+        ]
+      }
     },
     {
       "name": "show_vs_window",

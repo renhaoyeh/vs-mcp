@@ -45,7 +45,7 @@
 
 ## 功能與工具一覽
 
-目前有 **56 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
+目前有 **58 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。以下列出完整名稱、用途與回傳內容。
 
 | 分類 | MCP 工具 | 功能與回傳內容 |
 | --- | --- | --- |
@@ -56,6 +56,7 @@
 | 卸載與重新載入專案 | `project_unload`、`project_reload` | 對應方案總管右鍵的「卸載專案」與「重新載入專案」，以完整專案名稱或唯一名稱指定，保留方案中的專案項目。要求 IDE 閒置，且文件、方案與目標專案皆已儲存。重新載入僅接受已卸載的專案。 |
 | 啟動與組態設定 | `startup_project_get`、`startup_project_set`、`build_configuration_set` | 讀取／明確設定啟動專案，或切換指定組態與平台；不會猜測其他設定。 |
 | 建置 | `build_projects`、`get_build_status`、`cancel_build` | 建置、清除或重建指定專案／方案資料夾；回傳依賴順序、各專案結果、錯誤及 Build Output，可等待、查詢及取消。 |
+| 建置設定 | `get_build_settings`、`set_build_settings` | 讀取或部分更新持續保存的平行數、輸出／記錄詳細度、執行／建置政策、低優先序及 C++ 計時／記錄。回傳支援狀態原因、執行個體身分與修改前／讀回值。修改需要閒置的 IDE。 |
 | 編輯器文件 | `document_list`、`document_active`、`document_open`、`document_read`、`document_write`、`document_save`、`document_close` | 讀寫 IDE 內的文件，包含未儲存內容；回傳儲存／唯讀狀態，讀取時提供完整 buffer 的 SHA-256。 |
 | 精準修改 | `editor_replace` | 依原文進行區分大小寫的替換；核對 SHA-256，原文不存在、重複或版本過期時拒絕修改；支援明確指定全部替換。 |
 | 偵錯啟停與狀態 | `start_debugging`、`start_without_debugging`、`without_debugging_reconcile`、`stop_debugging`、`get_debug_status` | 啟停目前啟動專案，讀取 debugger mode、程序 PID／路徑及請求狀態；不會自行切換啟動專案或組態。 |
@@ -75,6 +76,10 @@
 完整參數、預設值與結果 schema 由官方 MCP SDK 產生，透過 MCP 的 `tools/list` 提供。[src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) 保存產生的 IDE 工具目錄，讓橋接程式在 VS 尚未啟動時仍能提供固定的工具定義；連接時會核對實際 IDE 的工具目錄。
 
 `start_without_debugging` 沿用目前組態與啟始專案執行 Ctrl+F5。僅支援 Built 輸出群組提供單一 EXE 的專案（受控 DLL 需要 EXE apphost）。觀察到請求後建立、符合預期路徑且為此 VS 子孫的所有目標程序，才回傳 `started`、PID 與路徑；這不代表應用程式已就緒。否則回傳 `unconfirmed`，背景確認最多持續 120 秒，取消呼叫不會取消啟動。使用 `get_debug_status.withoutDebuggingRequest` 查閱結果。建置、測試、偵錯及未確認的啟動請求會阻擋重複啟動。未確認狀態會繼續阻擋啟動。可用 `without_debugging_reconcile(requestId)` 重新核對程序，背景確認逾時後仍可使用。檢查 VS 後，明確傳入 `abandonTracking: true` 與 `acknowledgeLaunchMayStillOccur: true`，會將未確認請求標記為 `abandoned` 並解除追蹤鎖定；這不會取消已排入的命令、不代表啟動失敗，也不會終止程序，之後仍可能發生延遲啟動。過期 request ID 不會影響新請求；建置、測試或偵錯中禁止放棄追蹤。短命程序及分離的啟動器可能無法確認；不支援外部程式、瀏覽器及 dotnet 託管 DLL 啟動。`stop_debugging` 不會終止這些程序。
+
+`get_build_settings` 不需開啟方案。`set_build_settings` 只更新指定欄位（至少一項）：`maxParallelProjectBuilds`、`outputVerbosity`、`logFileVerbosity`（C++）、`onlyBuildStartupProjectsAndDependencies`、`onRunWhenOutOfDate`、`onRunWhenBuildErrors`、`lowPriorityBuild`、`stopSolutionBuildAfterFirstFailure`、`cppBuildTiming`、`cppBuildLogging`。詳細度接受 `quiet`、`minimal`、`normal`、`detailed`、`diagnostic`。C++ 執行政策分別接受 `alwaysBuild`／`neverBuild`／`promptToBuild` 和 `launchOld`／`doNotLaunch`／`promptToLaunch`；執行舊版可能與目前原始碼不符。支援範圍依主機／工作負載而定：不可用欄位為 null，`unsupportedSettings` 提供原因；要求不可用欄位時，整個更新會在寫入前被拒絕。原生遇錯停止政策需能找到主機的設定註冊（VS 18.11+），與 `build_projects.stopOnFirstError` 分開。
+
+這些偏好跨方案保存，不會自動還原；可保存 `previous` 快照後明確還原。例如 `set_build_settings(maxParallelProjectBuilds: 2, lowPriorityBuild: true, outputVerbosity: "minimal")` 降低專案同時建置數，並要求後續 IDE 建置使用低優先序。不限制 CPU／編譯器執行緒，也不直接修改既有程序優先權。跨設定提供者的更新不是交易，失敗時附修改前／目前快照。`updateStatus: "pendingApproval"` 表示 VS 原生設定要求尚未提交；C++ 計時／記錄不會在此時寫入，需等核准處理完成後再要求更新。原生要求處理完畢、發生錯誤或呼叫中斷後，應先讀取設定再決定是否重試。工具不會隱含更改目前組態或啟始專案。
 
 ## C++／C# 支援範圍
 

@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **56 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **58 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -56,6 +56,7 @@ There are **56 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Unload and reload a project | `project_unload`, `project_reload` | Like Solution Explorer's Unload Project and Reload Project, by exact name or unique name. Retains the project in the solution. Requires an idle IDE and saved documents, solution and target project. Reload only accepts unloaded projects. |
 | Startup project and configuration | `startup_project_get`, `startup_project_set`, `build_configuration_set` | Read or explicitly set startup projects, or select a configuration and platform. Settings are never inferred. |
 | Builds | `build_projects`, `get_build_status`, `cancel_build` | Build, clean or rebuild selected projects or solution folders; return dependency order, per-project results, errors and Build Output, with waiting, polling and cancellation. |
+| Build settings | `get_build_settings`, `set_build_settings` | Read or patch persistent parallelism, output/log verbosity, run/build policies, low priority and C++ timing/logging. Returns support reasons, instance identity and previous/read-back values. Changes require an idle IDE. |
 | Editor documents | `document_list`, `document_active`, `document_open`, `document_read`, `document_write`, `document_save`, `document_close` | Read and write IDE documents, including unsaved content; return saved/read-only state and the full buffer's SHA-256 when reading. |
 | Precise edits | `editor_replace` | Apply case-sensitive text replacements after checking SHA-256; reject missing or ambiguous matches and stale content. Replacing all matches requires an explicit option. |
 | Debug lifecycle and status | `start_debugging`, `start_without_debugging`, `without_debugging_reconcile`, `stop_debugging`, `get_debug_status` | Start or stop debugging the current startup project; return debugger mode, process IDs/paths and request status without changing startup projects or configuration. |
@@ -75,6 +76,10 @@ There are **56 IDE tools**, plus **2 instance-management tools** exposed by the 
 The official MCP SDK generates parameter definitions, defaults and result schemas, available through MCP `tools/list`. The generated IDE catalog in [src/VsMcp.Bridge/tools.json](src/VsMcp.Bridge/tools.json) lets the bridge expose stable tool definitions before VS starts. Connecting verifies that the live IDE tool catalog matches.
 
 `show_vs_window` with `visible: false` hides VS without closing it or stopping builds/debugging. Showing defaults to no explicit activation; pass `visible: true, activate: true` to request foreground activation. `activationRequested` reports the request, not proof of OS foreground focus. This tool does not establish a persistent background mode: starting debugging currently shows and activates VS, and VS can show itself on a breakpoint.
+
+`get_build_settings` works without an open solution. `set_build_settings` patches only supplied fields (at least one): `maxParallelProjectBuilds`, `outputVerbosity`, `logFileVerbosity` (C++), `onlyBuildStartupProjectsAndDependencies`, `onRunWhenOutOfDate`, `onRunWhenBuildErrors`, `lowPriorityBuild`, `stopSolutionBuildAfterFirstFailure`, `cppBuildTiming` and `cppBuildLogging`. Verbosity is `quiet`, `minimal`, `normal`, `detailed` or `diagnostic`. The C++ run policies accept `alwaysBuild` / `neverBuild` / `promptToBuild` and `launchOld` / `doNotLaunch` / `promptToLaunch`; launching old binaries can mismatch current source. Support depends on the host/workloads: unavailable fields are null with reasons in `unsupportedSettings`, and requesting an unavailable field rejects the patch before writing. The native stop policy requires a discoverable host registration (VS 18.11+) and is separate from `build_projects.stopOnFirstError`.
+
+These preferences persist across solutions and are not restored automatically. Save the `previous` snapshot to restore explicitly. For example, `set_build_settings(maxParallelProjectBuilds: 2, lowPriorityBuild: true, outputVerbosity: "minimal")` reduces project concurrency and requests low priority for subsequent IDE builds. It does not cap CPU/compiler threads or directly change existing process priorities. Updates across settings providers are not transactional; failures include previous/current snapshots. `updateStatus: "pendingApproval"` means VS has not committed the native settings request; C++ timing/logging writes are deferred and must be requested again after approval is resolved. Read the settings after resolving the native request, an error or an interrupted call before retrying. No tool implicitly changes the active configuration or startup projects.
 
 ## C++ and C# support
 

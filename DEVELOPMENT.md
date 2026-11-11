@@ -44,6 +44,8 @@ The `Release VSIX` GitHub Actions workflow builds the Release package, checks th
 
 ## Validation
 
+The build settings tools expose ten typed preferences through the host's registered Unified Settings API and C++ DTE automation, with UI-thread access, idle checks, support reasons, preflight validation and previous/read-back snapshots. Project parallelism falls back to the actual DTE property `ConcurrentBuilds` when Unified Settings is unavailable. The stop-after-first-failure preference is discovered only from a unique boolean registration in the running host's Build and Run schema; absent/ambiguous registrations are unsupported, never written under a guessed key. Native VS approval can remain pending, and updates across providers are not transactional. Tests restore preferences in `finally`.
+
 ```powershell
 dotnet test tests/VsMcp.UnitTests
 dotnet test tests/VsMcp.BridgeTests

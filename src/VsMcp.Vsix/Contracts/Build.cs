@@ -7,6 +7,40 @@ using System.Text.Json.Serialization;
 // T? a value that may be null.
 namespace VsMcp.Contracts
 {
+    internal enum BuildVerbosity { Quiet, Minimal, Normal, Detailed, Diagnostic }
+    internal enum OutOfDateBuildBehavior { AlwaysBuild, NeverBuild, PromptToBuild }
+    internal enum BuildErrorRunBehavior { LaunchOld, DoNotLaunch, PromptToLaunch }
+    internal enum BuildSettingsUpdateStatus { Read, Unchanged, Applied, PendingApproval }
+
+    internal class BuildSettingsValues
+    {
+        [Description("Maximum parallel projects; not a CPU or compiler thread limit. Null when unsupported.")]
+        public int? MaxParallelProjectBuilds { get; set; }
+        public BuildVerbosity? OutputVerbosity { get; set; }
+        [Description("C++ MSBuild log file verbosity.")]
+        public BuildVerbosity? LogFileVerbosity { get; set; }
+        public bool? OnlyBuildStartupProjectsAndDependencies { get; set; }
+        public OutOfDateBuildBehavior? OnRunWhenOutOfDate { get; set; }
+        public BuildErrorRunBehavior? OnRunWhenBuildErrors { get; set; }
+        [Description("IDE preference for subsequent builds; does not change the priority of existing processes.")]
+        public bool? LowPriorityBuild { get; set; }
+        [Description("Native VS solution-build policy, available on supporting hosts (VS 18.11+). Separate from build_projects.stopOnFirstError.")]
+        public bool? StopSolutionBuildAfterFirstFailure { get; set; }
+        public bool? CppBuildTiming { get; set; }
+        public bool? CppBuildLogging { get; set; }
+    }
+
+    internal sealed class BuildSettingsOutput : BuildSettingsValues
+    {
+        [JsonRequired] public InstanceInfo Instance { get; set; } = new InstanceInfo();
+        [JsonRequired] public BuildSettingsUpdateStatus UpdateStatus { get; set; }
+        [Description("Unavailable setting names and reasons. Null values must not be treated as false or defaults.")]
+        [JsonRequired] public Dictionary<string, string> UnsupportedSettings { get; set; } = new Dictionary<string, string>();
+        [Description("Snapshot before an update; null for reads. Updates are not transactional across settings providers.")]
+        public BuildSettingsValues? Previous { get; set; }
+        public int? PreviousMaxParallelProjectBuilds { get; set; }
+    }
+
     internal enum BuildOperation
     {
         Build,
