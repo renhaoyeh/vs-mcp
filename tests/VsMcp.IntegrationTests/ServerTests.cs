@@ -10,6 +10,7 @@ public sealed class ServerTests(FixtureSession session)
 {
     private static readonly string[] ToolNames =
     {
+        "cpp_configuration_get", "cpp_launch_settings_get", "cpp_launch_settings_set", "project_outputs", "project_item_add", "project_item_remove",
         "debugger_attach", "editor_selection_get", "project_items", "test_discover",
         "get_build_settings", "set_build_settings", "debugger_open_dump", "debugger_save_dump",
         "debugger_list_modules", "debugger_get_exception", "debugger_get_symbol_settings", "debugger_set_symbol_settings",
@@ -43,7 +44,7 @@ public sealed class ServerTests(FixtureSession session)
         }
 
         var readOnly = tools.Where(t => t.ProtocolTool.Annotations!.ReadOnlyHint == true).Select(t => t.Name);
-        Assert.Equal(new[] { "debugger_get_callstack", "debugger_get_locals", "debugger_list_breakpoints", "debugger_list_threads", "document_active", "document_list", "document_read", "errors_list", "find_references", "get_build_status", "get_debug_status", "get_project_dependencies", "get_projects", "get_solution_configurations", "get_vs_info", "goto_definition", "output_list_panes", "output_read", "startup_project_get", "test_status" }.Concat(new[] { "editor_selection_get", "project_items", "test_discover", "get_build_settings", "debugger_list_modules", "debugger_get_exception", "debugger_get_symbol_settings" }).OrderBy(n => n),
+        Assert.Equal(new[] { "debugger_get_callstack", "debugger_get_locals", "debugger_list_breakpoints", "debugger_list_threads", "document_active", "document_list", "document_read", "errors_list", "find_references", "get_build_status", "get_debug_status", "get_project_dependencies", "get_projects", "get_solution_configurations", "get_vs_info", "goto_definition", "output_list_panes", "output_read", "startup_project_get", "test_status" }.Concat(new[] { "cpp_configuration_get", "cpp_launch_settings_get", "project_outputs", "editor_selection_get", "project_items", "test_discover", "get_build_settings", "debugger_list_modules", "debugger_get_exception", "debugger_get_symbol_settings" }).OrderBy(n => n),
             readOnly.OrderBy(n => n));
     }
 

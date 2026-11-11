@@ -45,7 +45,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **64 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
+There are **70 IDE tools**, plus **2 instance-management tools** exposed by the bridge. The table lists every tool and the data it returns.
 
 | Category | MCP tools | Behavior and results |
 | --- | --- | --- |
@@ -65,6 +65,8 @@ There are **64 IDE tools**, plus **2 instance-management tools** exposed by the 
 | Debug execution control | `debugger_break`, `debugger_continue`, `debugger_step_into`, `debugger_step_over`, `debugger_step_out` | Break, continue and step after checking the current debugger mode. |
 | Attach debugger | `debugger_attach` | Attach to a local PID after checking its absolute executable path; optional debugger engine. Requires an idle IDE. |
 | Additional IDE queries | `editor_selection_get`, `project_items`, `test_discover` | Read the active selection, enumerate project membership and discover tests from built containers without running them. |
+| C++ configuration and launch | `cpp_configuration_get`, `cpp_launch_settings_get`, `cpp_launch_settings_set` | Read raw/evaluated project or file settings, and read or explicitly patch project launch settings. Exact configuration/platform selectors never activate a configuration; omitted selectors use VS's active project mapping. |
+| Project outputs and membership | `project_outputs`, `project_item_add`, `project_item_remove` | Read project-system output paths without building; include an existing file in a project/filter, or exclude one exact hierarchy item while retaining the physical file. |
 | Breakpoints | `debugger_add_breakpoint`, `debugger_list_breakpoints`, `breakpoint_enable`, `debugger_remove_breakpoint` | Add file/line breakpoints with optional conditions; list, enable, disable and remove them. Binding depends on loaded symbols. |
 | Debug context | `debugger_list_threads`, `debugger_select_thread`, `debugger_select_frame` | List threads in the current debug program and select a thread or stack frame while paused; verify selection by reading it back. |
 | Debug data | `debugger_get_locals`, `debugger_get_callstack`, `debugger_evaluate` | Read bounded results for the current frame's locals, the current thread's call stack and expression evaluation while paused. |
@@ -80,6 +82,8 @@ The official MCP SDK generates parameter definitions, defaults and result schema
 `startup_project_set` accepts either `project` for one project or `projects` for an ordered list. An explicit empty list clears the selection. All projects are resolved and duplicate entries rejected before writing; the response includes the previous list and readback. It never launches or builds the projects.
 
 `errors_list` preserves the Error List provider's `code`, `source`, `buildTool`, `dataSource` and `sourceType`. `source` is the native `Build`/`Other` classification: `Other` does not establish that a diagnostic came from IntelliSense. Positions are one-based; absent fields are null. `isStable` describes the subscribed providers and does not prove analysis is complete. A legacy DTE fallback advertises `extendedFieldsAvailable: false` and rejects extended filters.
+
+`cpp_launch_settings_set` patches only supplied command, arguments, working directory, environment, merge flag and debugger type (`auto`, `nativeOnly`, `managedOnly`, `mixed`, `managedCore`, `nativeWithManagedCore`). Project settings and file-membership mutations require an idle IDE and saved state, and save the target project after writing. Save the previous launch values to restore them explicitly. `project_item_remove` excludes one file reference; it does not delete its physical file. Inspect readback and project membership after interrupted mutations before retrying.
 
 `show_vs_window` with `visible: false` hides VS without closing it or stopping builds/debugging. Showing defaults to no explicit activation; pass `visible: true, activate: true` to request foreground activation. `activationRequested` reports the request, not proof of OS foreground focus. This tool does not establish a persistent background mode: starting debugging currently shows and activates VS, and VS can show itself on a breakpoint.
 

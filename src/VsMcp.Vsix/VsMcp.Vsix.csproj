@@ -40,6 +40,7 @@
     <VsRoslynDir>$(MSBuildExtensionsPath)\..\Common7\IDE\CommonExtensions\Microsoft\VBCSharp\LanguageServices</VsRoslynDir>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.VisualStudio.VCProjectEngine"><HintPath>$(MSBuildExtensionsPath)\..\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.VCProjectEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(VsRoslynDir)\Microsoft.CodeAnalysis.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Microsoft.CodeAnalysis.CSharp"><HintPath>$(VsRoslynDir)\Microsoft.CodeAnalysis.CSharp.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Microsoft.CodeAnalysis.Workspaces"><HintPath>$(VsRoslynDir)\Microsoft.CodeAnalysis.Workspaces.dll</HintPath><Private>false</Private></Reference>

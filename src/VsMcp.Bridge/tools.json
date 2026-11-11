@@ -371,6 +371,525 @@
       }
     },
     {
+      "name": "cpp_configuration_get",
+      "title": "Get C++ configuration",
+      "description": "Read native Visual C++ configuration properties without activating a configuration. Supply an exact configuration/platform pair, or omit both to use the project's actual mapping for the active solution configuration. Optional file selects one exact absolute C++ source path and returns the native per-file compiler settings. Reports raw and evaluated supported include paths, defines, libraries, output paths, toolset, C++ language standard and precompiled header settings. Does not modify the project.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "description": "Exact project name or unique name.",
+            "type": "string"
+          },
+          "configuration": {
+            "description": "Exact project configuration name, for example Debug. If both configuration and platform are omitted, Visual Studio's actual mapping for the active solution configuration is used without switching it.",
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "description": "Exact project platform name, for example x64. If both configuration and platform are omitted, Visual Studio's actual mapping for the active solution configuration is used without switching it.",
+            "type": "string",
+            "default": null
+          },
+          "file": {
+            "description": "Optional exact absolute path to one C++ source file included in the project. Reads the file configuration associated with the selected project configuration/platform.",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "file": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "configuration": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              },
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "raw": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "evaluated": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "cpp_launch_settings_get",
+      "title": "Get C++ launch settings",
+      "description": "Read the native Visual C++ debugger settings for an exact project configuration/platform. Does not change active configuration or startup project.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "configuration": {
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "configuration": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              },
+              "previous": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "command": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "arguments": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "workingDirectory": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "environment": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mergeEnvironment": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "debuggerType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "values": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "arguments": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "workingDirectory": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "environment": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mergeEnvironment": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "debuggerType": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "cpp_launch_settings_set",
+      "title": "Set C++ launch settings",
+      "description": "Update specified native Visual C++ debugger settings stored for one exact project configuration/platform. Requires an idle IDE and saved documents, solution and project. Omitted fields are preserved. Validates all requested properties before writing and returns previous and read-back values. It does not change the active configuration or startup project. After an error or interruption, read the settings before retrying.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "configuration": {
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "type": "string",
+            "default": null
+          },
+          "command": {
+            "description": "Executable command to launch; omit to preserve.",
+            "type": "string",
+            "default": null
+          },
+          "arguments": {
+            "description": "Command line arguments; omit to preserve.",
+            "type": "string",
+            "default": null
+          },
+          "workingDirectory": {
+            "description": "Working directory; omit to preserve.",
+            "type": "string",
+            "default": null
+          },
+          "environment": {
+            "description": "Debuggee environment as newline-delimited NAME=VALUE entries; omit to preserve.",
+            "type": "string",
+            "default": null
+          },
+          "mergeEnvironment": {
+            "description": "Whether to merge the specified environment with the inherited environment; omit to preserve.",
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null
+          },
+          "debuggerType": {
+            "description": "Local debug engine type: auto, nativeOnly, managedOnly, mixed, managedCore or nativeWithManagedCore; omit to preserve.",
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "configuration": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              },
+              "previous": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "command": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "arguments": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "workingDirectory": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "environment": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mergeEnvironment": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "debuggerType": {
+                    "type": "string"
+                  }
+                }
+              },
+              "values": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "arguments": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "workingDirectory": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "environment": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mergeEnvironment": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "debuggerType": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
       "name": "debugger_add_breakpoint",
       "title": "debugger_add_breakpoint",
       "description": "Add a file/line breakpoint, optionally with a condition. Returns the debugger's resulting breakpoint state; binding depends on loaded symbols.",
@@ -3763,6 +4282,232 @@
       "outputSchema": null
     },
     {
+      "name": "project_item_add",
+      "title": "Add existing project item",
+      "description": "Add one existing file reference to a loaded project's project-system state, optionally under an existing project folder/filter. Requires an idle IDE and saved documents, solution and project. Saves only the target project file after the change. The file must already exist; the source file contents are never copied or changed. Returns the resulting hierarchy item path and physical path. Does not alter configuration or startup project.",
+      "readOnly": false,
+      "destructive": false,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "filePath": {
+            "type": "string"
+          },
+          "filter": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "project",
+          "filePath"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "item": {
+                "type": "string"
+              },
+              "filePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "added": {
+                "type": "boolean"
+              },
+              "removed": {
+                "type": "boolean"
+              },
+              "fileStillExists": {
+                "type": "boolean"
+              },
+              "filter": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
+      "name": "project_item_remove",
+      "title": "Remove project item",
+      "description": "Exclude one exact project item from the loaded project's project-system state by its '/'-separated hierarchy path. Requires an idle IDE and saved documents, solution and project. Saves the target project file after removing only the item reference; never deletes the source file from disk. Inspect the project hierarchy before retrying an interrupted request. Does not alter configuration or startup project.",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "itemPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "itemPath"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "item": {
+                "type": "string"
+              },
+              "filePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "added": {
+                "type": "boolean"
+              },
+              "removed": {
+                "type": "boolean"
+              },
+              "fileStillExists": {
+                "type": "boolean"
+              },
+              "filter": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
+      }
+    },
+    {
       "name": "project_items",
       "title": "Get project items",
       "description": "Enumerate one project's Visual Studio item hierarchy, including folders and physical file paths when available. Requires an exact project name or unique name; ambiguous and missing projects fail. Results are bounded to 2000 items and report truncation. Read-only.",
@@ -3876,6 +4621,162 @@
             "type": "boolean"
           }
         }
+      }
+    },
+    {
+      "name": "project_outputs",
+      "title": "Get project outputs",
+      "description": "Read project output paths reported by the selected Visual Studio project configuration without activating it. Supply an exact project configuration/platform pair, or omit both to use the project's actual mapping for the active solution configuration. Includes bounded output-group paths and, for C++, primary output, PDB, import library and configured output directories. Paths come from Visual Studio project APIs and are not inferred from files on disk. Unsupported values are null and identified in unavailable.",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true,
+      "openWorld": false,
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "configuration": {
+            "type": "string",
+            "default": null
+          },
+          "platform": {
+            "type": "string",
+            "default": null
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "instance": {
+            "description": "The Visual Studio instance that served the call.",
+            "type": "object",
+            "properties": {
+              "pid": {
+                "type": "integer"
+              },
+              "product": {
+                "type": "string"
+              },
+              "dteVersion": {
+                "type": "string"
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "executablePath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "solutionOpen": {
+                "type": "boolean"
+              },
+              "solutionPath": {
+                "description": "Null for an unsaved solution.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "pid",
+              "product",
+              "dteVersion",
+              "solutionOpen"
+            ]
+          },
+          "data": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "configuration": {
+                "type": "string"
+              },
+              "platform": {
+                "type": "string"
+              },
+              "primaryOutput": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "programDatabase": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "importLibrary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "outputDirectory": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "intermediateDirectory": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "outputGroups": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "canonicalName": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "paths": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "unavailable": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "instance",
+          "data"
+        ]
       }
     },
     {
