@@ -2,6 +2,8 @@
 
 [English](projects-build.md) · [工具索引](README.zh-TW.md) · [專案首頁](../../README.zh-TW.md)
 
+建置優先使用 VS MCP。目標專案看似不存在時，先用 `get_vs_info` 確認連線的執行個體與方案，再查 `get_projects(recursive: true)` 並使用精確的 unique name。`get_projects` 回報 `isLoaded: false` 時，使用該專案的 unique name 呼叫 `project_reload`，確認 `isLoaded: true` 後繼續用 VS MCP 建置。方案內已卸載的專案使用 `project_reload`；這個工具無法加入不存在的專案。先確認是否連到正確方案，再判斷是否需要 fallback。切換方案或加入專案須符合使用者授權範圍。檢查後 VS MCP 路徑仍受阻時，可以改用 MSBuild、`dotnet build` 或其他適合的建置方式，並說明具體阻礙與 fallback 原因，保留其他執行中的應用程式。
+
 管理方案、組態、建置設定、C++ 屬性、輸出與專案檔案。
 
 本頁列出 **22 個工具**。

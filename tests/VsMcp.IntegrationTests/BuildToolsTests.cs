@@ -113,7 +113,12 @@ public sealed class BuildToolsTests(FixtureSession session)
 
         Assert.Contains("INVALID_ARGUMENT:", await client.Fail("build_projects", Arguments(new { projects = new[] { "A" }, folder = "Libs" })));
         Assert.Contains("INVALID_ARGUMENT:", await client.Fail("build_projects", Arguments(new { })));
-        Assert.Contains("PROJECT_NOT_FOUND:", await client.Fail("build_projects", Arguments(new { projects = new[] { "Nope" } })));
+        var missing = await client.Fail("build_projects", Arguments(new { projects = new[] { "Nope" } }));
+        Assert.Contains("PROJECT_NOT_FOUND:", missing);
+        Assert.Contains("get_projects(recursive: true)", missing);
+        Assert.Contains("project_reload", missing);
+        Assert.Contains("after inspection", missing);
+        Assert.Contains("fallback reason", missing);
         Assert.Contains("DUPLICATE_PROJECT:", await client.Fail("build_projects", Arguments(new { projects = new[] { "A", "A" } })));
         Assert.Contains("FOLDER_NOT_FOUND:", await client.Fail("build_projects", Arguments(new { folder = "Nope" })));
     }

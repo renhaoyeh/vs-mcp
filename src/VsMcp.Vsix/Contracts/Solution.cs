@@ -29,6 +29,8 @@ namespace VsMcp.Contracts
 
     internal sealed class ProjectInfo
     {
+        [Description("True when loaded, false when unloaded in this solution (use project_reload before building), null when the solution service is unavailable.")]
+        public bool? IsLoaded { get; set; }
         [JsonRequired] public string Name { get; set; } = "";
         [JsonRequired] public string UniqueName { get; set; } = "";
         public string? FullName { get; set; }

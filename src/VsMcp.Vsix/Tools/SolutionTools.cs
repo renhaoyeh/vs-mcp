@@ -43,7 +43,7 @@ namespace VsMcp.Tools
         }
 
         [McpServerTool(Name = "get_projects", Title = "Get projects", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false, UseStructuredContent = true)]
-        [Description("List the solution's projects together with its solution-folder hierarchy, one level at a time. Without 'folder' it returns the top level of the solution; with 'folder' (a path of solution folder names separated by '/') it returns what is directly inside that folder. Each folder reports its direct folder and project counts and the total number of projects below it, so you can decide where to go deeper. Set 'recursive' to expand the whole subtree at once (large solutions can be big). Read-only. A folder path that does not exist fails with the available folders instead of falling back.")]
+        [Description("List the solution's projects together with its solution-folder hierarchy, one level at a time. Without 'folder' it returns the top level of the solution; with 'folder' (a path of solution folder names separated by '/') it returns what is directly inside that folder. Each folder reports its direct folder and project counts and the total number of projects below it, so you can decide where to go deeper. Set 'recursive' to expand the whole subtree at once (large solutions can be big). Each project reports isLoaded (false means unloaded; call project_reload, verify loaded, then build with VS MCP). Read-only. A folder path that does not exist fails with the available folders instead of falling back.")]
         public async Task<GetProjectsOutput> GetProjectsTool([Description("Solution folder path to look inside, for example 'FolderA/SubFolder'. Omit for the top level.")] string folder = null, [Description("Expand every folder below the requested level.")] bool recursive = false, CancellationToken cancellationToken = default)
         {
             await _joinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -257,6 +257,7 @@ namespace VsMcp.Tools
                         UniqueName = node.Project.UniqueName,
                         FullName = node.Project.FullName,
                         Kind = node.Project.Kind,
+                        IsLoaded = node.Project.IsLoaded,
                     });
                 }
             }

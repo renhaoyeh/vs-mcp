@@ -2,6 +2,8 @@
 
 [繁體中文](projects-build.zh-TW.md) · [Tool index](README.md) · [Project README](../../README.md)
 
+Prefer VS MCP for builds. When a target appears missing, first confirm the connected instance and solution with `get_vs_info`, inspect `get_projects(recursive: true)` and use the exact unique name. When `get_projects` reports `isLoaded: false`, call `project_reload` with its unique name, verify `isLoaded: true`, then continue building through VS MCP. Use `project_reload` for an unloaded project already in that solution; it cannot add an absent project. Check whether the intended solution is connected before considering a fallback. Switching solutions or adding projects must stay within the user's authorized scope. If the VS MCP path remains blocked after inspection, MSBuild, `dotnet build` or another suitable build path may be used; explain the blocker and why the fallback is needed, and preserve unrelated running applications.
+
 Manage solutions, configurations, build settings, C++ properties, outputs and project files.
 
 This page lists **22 tools**.

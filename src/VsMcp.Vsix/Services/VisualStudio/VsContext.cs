@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Threading;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -107,7 +109,7 @@ namespace VsMcp.Services.VisualStudio
                 .ToList();
             if (matches.Count == 0)
             {
-                throw new McpToolException(ToolErrorCode.ProjectNotFound, $"No project named '{wantedProject}' in the solution.",
+                throw new McpToolException(ToolErrorCode.ProjectNotFound, $"No project named '{wantedProject}' in the connected solution. Confirm get_vs_info and get_projects(recursive: true), then use the exact unique name. If the project is unloaded, use project_reload. A project absent from this solution cannot be reloaded; first check whether this is the intended solution. Switching solutions or adding projects must stay within the user's authorized scope. If the VS MCP path remains blocked after inspection, a command-line build such as MSBuild or dotnet build may be used; explain the blocker and fallback reason.",
                     new JObject { ["instance"] = instance, ["available_projects"] = new JArray(projects.Select(p => p.UniqueName)) });
             }
 
@@ -147,6 +149,24 @@ namespace VsMcp.Services.VisualStudio
                 AddNode(project, roots);
             }
 
+            var solution = ServiceProvider.GlobalProvider.GetService(typeof(SVsSolution)) as IVsSolution;
+            if (solution != null)
+            {
+                var unloaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var type = Guid.Empty;
+                ErrorHandler.ThrowOnFailure(solution.GetProjectEnum((uint)__VSENUMPROJFLAGS.EPF_UNLOADEDINSOLUTION, ref type, out var enumerator));
+                var items = new IVsHierarchy[1];
+                while (true)
+                {
+                    ErrorHandler.ThrowOnFailure(enumerator.Next(1, items, out var fetched));
+                    if (fetched == 0) break;
+                    ErrorHandler.ThrowOnFailure(solution.GetUniqueNameOfProject(items[0], out var uniqueName));
+                    unloaded.Add(uniqueName);
+                }
+                var entries = new List<ProjectEntry>();
+                Flatten(roots, entries);
+                foreach (var entry in entries) entry.IsLoaded = !unloaded.Contains(entry.UniqueName);
+            }
             return roots;
         }
 
@@ -298,6 +318,7 @@ namespace VsMcp.Services.VisualStudio
 
     internal sealed class ProjectEntry
     {
+        public bool? IsLoaded;
         public string Name;
         public string UniqueName;
         public string FullName;

@@ -57,7 +57,7 @@
     {
       "name": "build_projects",
       "title": "Build projects",
-      "description": "Build, clean or rebuild the given projects in the active solution configuration and platform, as Visual Studio does when you build, and wait for the result. Read the active configuration with get_solution_configurations; to build another one, set it active in Visual Studio first. This tool never changes it. 'operation' is 'build' (default), 'clean' (delete the projects' build output) or 'rebuild' (clean, then build). Clean and rebuild delete build output on disk and nothing else; they never run git. Give either 'projects' (built in the listed order) or 'folder' (every project below that solution folder, ordered so a project comes after the projects it requires within the folder). With 'folder', projects the configuration does not build (shouldBuild false) are listed in 'skipped'. By default the build stops at the first failed project ('stopOnFirstError'); the projects not reached report 'notBuilt' and 'stoppedEarly' is true. The projects the requested ones require, directly or indirectly, are built first, like building a project or a solution folder in Visual Studio; they are listed in build order, and a dependency the configuration does not build is listed in 'skipped'. A clean never adds dependencies. Each project is built with the project configuration that the solution configuration maps it to; the active configuration is never changed. A requested project that the solution configuration does not build (shouldBuild false) is rejected instead of built. 'status' is 'succeeded', 'failed' or 'cancelled' once Visual Studio reports the build finished, and 'running' if it was still going when 'timeoutSeconds' elapsed (the build continues). Per-project 'result' tells which projects built, failed or were not reached. This writes build output to disk. Fails with BUILD_IN_PROGRESS while another build is running.",
+      "description": "Build, clean or rebuild the given projects in the active solution configuration and platform, as Visual Studio does when you build, and wait for the result. Read the active configuration with get_solution_configurations; to build another one, set it active in Visual Studio first. This tool never changes it. 'operation' is 'build' (default), 'clean' (delete the projects' build output) or 'rebuild' (clean, then build). Clean and rebuild delete build output on disk and nothing else; they never run git. Give either 'projects' (built in the listed order) or 'folder' (every project below that solution folder, ordered so a project comes after the projects it requires within the folder). With 'folder', projects the configuration does not build (shouldBuild false) are listed in 'skipped'. By default the build stops at the first failed project ('stopOnFirstError'); the projects not reached report 'notBuilt' and 'stoppedEarly' is true. The projects the requested ones require, directly or indirectly, are built first, like building a project or a solution folder in Visual Studio; they are listed in build order, and a dependency the configuration does not build is listed in 'skipped'. A clean never adds dependencies. Each project is built with the project configuration that the solution configuration maps it to; the active configuration is never changed. A requested project that the solution configuration does not build (shouldBuild false) is rejected instead of built. 'status' is 'succeeded', 'failed' or 'cancelled' once Visual Studio reports the build finished, and 'running' if it was still going when 'timeoutSeconds' elapsed (the build continues). Per-project 'result' tells which projects built, failed or were not reached. This writes build output to disk. Fails with BUILD_IN_PROGRESS while another build is running. Prefer VS MCP for builds. A missing or unloaded project alone is not a reason to immediately switch to a command-line build. Confirm get_vs_info and get_projects(recursive: true); use project_reload only for a project already in the solution and unloaded. If absent, first determine whether the connected solution is the intended one; switching solutions or adding projects must stay within the user's authorized scope. If the VS MCP path remains blocked after inspection, a command-line build such as MSBuild or dotnet build may be used; explain the blocker and fallback reason. Preserve unrelated running applications. When get_projects reports isLoaded false, call project_reload with that uniqueName, confirm isLoaded true, then continue the requested VS MCP build. An unloaded project alone does not justify fallback.",
       "readOnly": false,
       "destructive": false,
       "idempotent": true,
@@ -4767,7 +4767,7 @@
     {
       "name": "get_projects",
       "title": "Get projects",
-      "description": "List the solution's projects together with its solution-folder hierarchy, one level at a time. Without 'folder' it returns the top level of the solution; with 'folder' (a path of solution folder names separated by '/') it returns what is directly inside that folder. Each folder reports its direct folder and project counts and the total number of projects below it, so you can decide where to go deeper. Set 'recursive' to expand the whole subtree at once (large solutions can be big). Read-only. A folder path that does not exist fails with the available folders instead of falling back.",
+      "description": "List the solution's projects together with its solution-folder hierarchy, one level at a time. Without 'folder' it returns the top level of the solution; with 'folder' (a path of solution folder names separated by '/') it returns what is directly inside that folder. Each folder reports its direct folder and project counts and the total number of projects below it, so you can decide where to go deeper. Set 'recursive' to expand the whole subtree at once (large solutions can be big). Each project reports isLoaded (false means unloaded; call project_reload, verify loaded, then build with VS MCP). Read-only. A folder path that does not exist fails with the available folders instead of falling back.",
       "readOnly": true,
       "destructive": false,
       "idempotent": true,
@@ -4881,6 +4881,13 @@
                   "items": {
                     "type": "object",
                     "properties": {
+                      "isLoaded": {
+                        "description": "True when loaded, false when unloaded in this solution (use project_reload before building), null when the solution service is unavailable.",
+                        "type": [
+                          "boolean",
+                          "null"
+                        ]
+                      },
                       "name": {
                         "type": "string"
                       },
@@ -5835,7 +5842,7 @@
     {
       "name": "project_reload",
       "title": "Reload unloaded project",
-      "description": "Reload one unloaded project by exact name or unique name, like Reload Project in Solution Explorer. Requires an idle IDE and saved documents and solution. Missing, ambiguous or already loaded projects fail. Does not reload a loaded project or change configuration. Inspect state before retrying an interrupted call.",
+      "description": "Load an unloaded project back into the connected solution before continuing a requested VS MCP build, by exact name or unique name, like Reload Project in Solution Explorer. Requires an idle IDE and saved documents and solution. Missing, ambiguous or already loaded projects fail. Does not reload a loaded project or change configuration. Inspect state before retrying an interrupted call. A project absent from the solution cannot be reloaded; confirm get_vs_info and get_projects(recursive: true) before proceeding. Prefer VS MCP; use a command-line build only after inspecting the VS blocker and explaining the fallback reason.",
       "readOnly": false,
       "destructive": true,
       "idempotent": false,

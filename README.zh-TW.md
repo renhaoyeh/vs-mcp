@@ -2,6 +2,8 @@
 
 [English](README.md) | 繁體中文
 
+建置優先使用 VS MCP。目標專案看似不存在時，先用 `get_vs_info` 確認連線的執行個體與方案，再查 `get_projects(recursive: true)` 並使用精確的 unique name。`get_projects` 回報 `isLoaded: false` 時，使用該專案的 unique name 呼叫 `project_reload`，確認 `isLoaded: true` 後繼續用 VS MCP 建置。方案內已卸載的專案使用 `project_reload`；這個工具無法加入不存在的專案。先確認是否連到正確方案，再判斷是否需要 fallback。切換方案或加入專案須符合使用者授權範圍。檢查後 VS MCP 路徑仍受阻時，可以改用 MSBuild、`dotnet build` 或其他適合的建置方式，並說明具體阻礙與 fallback 原因，保留其他執行中的應用程式。
+
 讓 MCP agent 直接使用 Visual Studio 2026 的 C++／C# 開發能力。MCP 伺服器在連線的 IDE 內執行，透過 Streamable HTTP 提供方案、建置、未儲存文件、偵錯、診斷、語意導覽與測試結果。獨立安裝的 stdio 橋接程式提供固定的用戶端入口，並可明確選擇要操作的 VS 執行個體。
 
 ## 安裝與連線

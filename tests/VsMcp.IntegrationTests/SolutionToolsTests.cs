@@ -131,12 +131,15 @@ public sealed class SolutionToolsTests(FixtureSession session)
         var client = session.Client;
         var before = await client.Call<GetProjectsOutput>("get_projects");
         var project = Assert.Single(before.Projects, p => p.Name == "Root");
+        Assert.True(project.IsLoaded);
         var contents = File.ReadAllBytes(project.FullName!);
         var result = await client.Call<System.Text.Json.JsonElement>("project_unload", new { project = project.UniqueName });
         var guid = result.GetProperty("data").GetProperty("projectGuid").GetGuid();
         try
         {
             Assert.True(result.GetProperty("data").GetProperty("unloaded").GetBoolean());
+            var unloaded = await client.Call<GetProjectsOutput>("get_projects", new { recursive = true });
+            Assert.False(Assert.Single(unloaded.Projects, p => p.UniqueName == project.UniqueName).IsLoaded);
             Assert.Equal(project.UniqueName, result.GetProperty("data").GetProperty("project").GetString());
             Assert.True(result.GetProperty("instance").GetProperty("pid").GetInt32() > 0);
             Assert.Equal(contents, File.ReadAllBytes(project.FullName!));
@@ -156,5 +159,7 @@ public sealed class SolutionToolsTests(FixtureSession session)
         Assert.Equal(contents, File.ReadAllBytes(project.FullName!));
         var restored = await client.Call<GetProjectsOutput>("get_projects");
         Assert.Equal(project.Kind, Assert.Single(restored.Projects, p => p.UniqueName == project.UniqueName).Kind);
+        Assert.True(Assert.Single(restored.Projects, p => p.UniqueName == project.UniqueName).IsLoaded);
+        Assert.Equal(BuildStatus.Succeeded, (await client.Call<BuildOutput>("build_projects", new { projects = new[] { project.UniqueName } })).Status);
     }
 }

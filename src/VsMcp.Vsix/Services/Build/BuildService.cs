@@ -66,7 +66,7 @@ namespace VsMcp.Services.Build
                 throw new McpToolException(ToolErrorCode.DebuggerActive, "Stop debugging before building projects.");
             if (!_dte.Solution.IsOpen)
             {
-                throw new McpToolException(ToolErrorCode.NoSolution, "No solution is open in this Visual Studio instance.", new JObject { ["instance"] = instance });
+                throw new McpToolException(ToolErrorCode.NoSolution, "No solution is open in this Visual Studio instance. Confirm get_vs_info and open the intended solution with solution_open within the user's authorized scope. If the VS MCP path remains blocked after inspection, a command-line build such as MSBuild or dotnet build may be used; explain the blocker and fallback reason.", new JObject { ["instance"] = instance });
             }
 
             folderPath = (folderPath ?? "").Trim().Trim('/');

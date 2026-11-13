@@ -18,7 +18,10 @@ internal static class Program
             ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = typeof(Program).Assembly.GetName().Version!.ToString(3) },
             ServerInstructions = "Use list_vs_instances, then connect_vs_instance with the chosen PID and instanceId before calling IDE tools. "
                 + "Confirm the returned solution and process identity. The binding is local to this MCP connection. "
-                + "A restarted VS requires selecting the new instance explicitly. Interrupted mutations are never retried; inspect their effects before issuing another request.",
+                + "A restarted VS requires selecting the new instance explicitly. Interrupted mutations are never retried; inspect their effects before issuing another request. "
+                + "Prefer VS MCP for builds. If a project appears missing, confirm get_vs_info and get_projects(recursive: true); use project_reload for an unloaded project already in the solution. "
+                + "It cannot add an absent project. Switching solutions or adding projects must stay within the user's authorized scope. "
+                + "When get_projects reports isLoaded false, call project_reload with that uniqueName, confirm isLoaded true, then continue the requested VS MCP build. An unloaded project alone does not justify fallback. If the VS MCP path remains blocked after inspection, a command-line build may be used; explain the blocker and fallback reason, and preserve unrelated running applications.",
             Capabilities = new ServerCapabilities { Tools = new ToolsCapability { ListChanged = false } },
             ToolCollection = tools, ScopeRequests = false,
         };

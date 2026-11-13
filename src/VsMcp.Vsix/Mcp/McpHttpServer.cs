@@ -32,7 +32,12 @@ namespace VsMcp.Mcp
             "Controls the Visual Studio instance that hosts this server. Call get_vs_info first and confirm the process ID, version and solution path " +
             "are the intended instance. get_solution_configurations is read-only: it reports the solution's configurations and each project's mapped " +
             "project configuration and platform, and never changes the active configuration. If a filter does not match, the call fails and lists the " +
-            "available values; choose one explicitly instead of assuming.";
+            "available values; choose one explicitly instead of assuming. " +
+            "Prefer VS MCP for builds. Inspect missing or unloaded projects in Visual Studio before deciding whether a command-line fallback is needed. " +
+            "Confirm get_vs_info and get_projects(recursive: true); use project_reload for an unloaded project already in the solution. " +
+            "It cannot add an absent project. Switching solutions or adding projects must stay within the user's authorized scope. " +
+            "When get_projects reports isLoaded false, call project_reload with that uniqueName, confirm isLoaded true, then continue the requested VS MCP build. An unloaded project alone does not justify fallback. If the VS MCP path remains blocked after inspection, a command-line build such as MSBuild or dotnet build may be used; explain the blocker and fallback reason. " +
+            "If project loading is blocked, report the blocker and preserve unrelated running applications.";
 
         private readonly int _port;
         private readonly string _instanceId;

@@ -2,6 +2,8 @@
 
 English | [繁體中文](README.zh-TW.md)
 
+Prefer VS MCP for builds. When a target appears missing, first confirm the connected instance and solution with `get_vs_info`, inspect `get_projects(recursive: true)` and use the exact unique name. When `get_projects` reports `isLoaded: false`, call `project_reload` with its unique name, verify `isLoaded: true`, then continue building through VS MCP. Use `project_reload` for an unloaded project already in that solution; it cannot add an absent project. Check whether the intended solution is connected before considering a fallback. Switching solutions or adding projects must stay within the user's authorized scope. If the VS MCP path remains blocked after inspection, MSBuild, `dotnet build` or another suitable build path may be used; explain the blocker and why the fallback is needed, and preserve unrelated running applications.
+
 Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. A separately installed stdio bridge provides a fixed client entry point and explicit selection between running VS instances.
 
 ## Installation and connection
