@@ -25,7 +25,7 @@ namespace VsMcp.Mcp
     internal sealed class McpHttpServer : IDisposable
     {
         public const int DefaultPort = 18770;
-        public const string ServerVersion = "0.6.0";
+        public const string ServerVersion = "0.6.1";
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
 
         private const string Instructions =
