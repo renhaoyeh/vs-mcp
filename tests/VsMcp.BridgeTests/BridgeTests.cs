@@ -209,26 +209,6 @@ public sealed class BridgeTests
         Assert.Equal(start, Assert.Single(checkedRegistry.ReadAll()).ProcessStartTimeUtcTicks);
     }
 
-    [Fact]
-    public void Bridge_deployment_leaves_a_running_installation_intact()
-    {
-        using var environment = new TestEnvironment();
-        var source = Path.Combine(environment.Directory, "source");
-        var destination = Path.Combine(environment.Directory, "installed");
-        System.IO.Directory.CreateDirectory(source);
-        File.WriteAllText(Path.Combine(source, "bridge.dll"), "first");
-        BridgeDeployment.Install(source, destination);
-        using (File.Open(Path.Combine(destination, ".bridge.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
-        {
-            BridgeDeployment.Install(source, destination); // An identical installation needs no update.
-            File.WriteAllText(Path.Combine(source, "bridge.dll"), "second");
-            Assert.Throws<IOException>(() => BridgeDeployment.Install(source, destination));
-            Assert.Equal("first", File.ReadAllText(Path.Combine(destination, "bridge.dll")));
-        }
-        BridgeDeployment.Install(source, destination);
-        Assert.Equal("second", File.ReadAllText(Path.Combine(destination, "bridge.dll")));
-    }
-
     private static Task<CallToolResult> Call(BridgeConnection connection, string name) => connection.ForwardAsync(new CallToolRequestParams { Name = name }, default).AsTask();
     private static string Error(CallToolResult result) => result.StructuredContent!.Value.GetProperty("error").GetString()!;
 

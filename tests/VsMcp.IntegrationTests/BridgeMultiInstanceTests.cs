@@ -27,12 +27,18 @@ public sealed class BridgeMultiInstanceTests
             var secondEntry = await WaitForRegistration(second);
             Assert.NotEqual(firstEntry.Port, secondEntry.Port);
 
-            var executable = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VsMcp", "Bridge", "VsMcp.Bridge.exe");
-            Assert.True(File.Exists(executable), "The VSIX did not deploy the bridge to its fixed client path.");
-            var builtBridge = Path.Combine(ExpHost.ProjectRoot, "src", "VsMcp.Bridge", "bin", "Release", "net10.0", "win-x64", "publish", "VsMcp.Bridge.dll");
-            var installedBridge = Path.Combine(Path.GetDirectoryName(executable)!, "VsMcp.Bridge.dll");
+            // Setup smoke tests install into an isolated directory; never update a user's Bridge here.
+            var bridgeRoot = Environment.GetEnvironmentVariable("VS_MCP_TEST_BRIDGE_ROOT")
+                ?? throw new XunitException("Set VS_MCP_TEST_BRIDGE_ROOT to an isolated Bridge Setup installation (eng/Test-Integration.ps1).");
+            var executable = Path.Combine(bridgeRoot, "VsMcp.Launcher.exe");
+            Assert.True(File.Exists(executable), "The isolated Bridge Setup installation has no launcher.");
+            var selected = File.ReadAllText(Path.Combine(bridgeRoot, "current.txt")).Trim();
+            Assert.Matches("^[0-9][a-z0-9.-]*$", selected);
+            Assert.DoesNotContain("..", selected);
+            var builtBridge = Path.Combine(ExpHost.ProjectRoot, "src", "VsMcp.Bridge", "bin", "Release", "net10.0", "win-x64", "VsMcp.Bridge.dll");
+            var installedBridge = Path.Combine(bridgeRoot, "versions", selected, "VsMcp.Bridge.dll");
             foreach (var runtimeFile in new[] { "hostfxr.dll", "hostpolicy.dll", "coreclr.dll" })
-                Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(executable)!, runtimeFile)), "Missing bundled runtime: " + runtimeFile);
+                Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(installedBridge)!, runtimeFile)), "Missing bundled runtime: " + runtimeFile);
             using var runtimeConfig = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(installedBridge, ".runtimeconfig.json")));
             Assert.False(runtimeConfig.RootElement.GetProperty("runtimeOptions").TryGetProperty("framework", out _));
             Assert.True(runtimeConfig.RootElement.GetProperty("runtimeOptions").TryGetProperty("includedFrameworks", out _));

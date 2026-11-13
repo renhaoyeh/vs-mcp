@@ -1,4 +1,4 @@
-name: Release VSIX
+name: Release VSIX and Bridge
 
 on:
   workflow_dispatch:
@@ -29,6 +29,8 @@ jobs:
           [xml]$manifest = Get-Content src/VsMcp.Vsix/source.extension.vsixmanifest -Raw
           $manifestVersion = $manifest.SelectSingleNode('//*[local-name()="Identity"]').GetAttribute('Version')
           if ($manifestVersion -ne $version) { throw 'Project and VSIX manifest versions must match.' }
+          [xml]$bridge = Get-Content src/VsMcp.Bridge/VsMcp.Bridge.csproj -Raw
+          if ($bridge.Project.PropertyGroup.Version -ne $version) { throw 'Bridge and VSIX versions must match.' }
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -cne "v$version") {
             throw "The release tag must be v$version."
           }
@@ -44,7 +46,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & tests/VsMcp.ToolCatalog/bin/Release/net472/VsMcp.ToolCatalog.exe src/VsMcp.Bridge/tools.json --check
 
-      - name: Run unit tests
+      - name: Install Setup compiler
+        run: choco install innosetup --no-progress -y
+
+      - name: Build Bridge Setup
+        run: ./eng/Build-BridgeSetup.ps1 -IncludeUpgradeTestFixture
+
+      - name: Run unit and installation tests
         run: |
           dotnet test tests/VsMcp.UnitTests -c Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -56,11 +64,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & tests/VsMcp.Harness/bin/Release/net472/VsMcp.Harness.exe
 
-      - name: Upload VSIX artifact
+      - name: Stage release assets
+        run: ./eng/Stage-Release.ps1
+
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: VsMcp-vsix
-          path: src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix
+          name: VsMcp-release
+          path: |
+            artifacts/release/*/*
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -69,9 +81,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          $release = "artifacts/release/$version"
           gh release view "$env:GITHUB_REF_NAME" --json tagName *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload "$env:GITHUB_REF_NAME" src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix --clobber
+            gh release upload "$env:GITHUB_REF_NAME" "$release/VsMcp.vsix" "$release/VsMcp.Bridge.Setup.exe" "$release/SHA256SUMS.txt" --clobber
           } else {
-            gh release create "$env:GITHUB_REF_NAME" src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix --verify-tag --title "$env:GITHUB_REF_NAME" --generate-notes
+            gh release create "$env:GITHUB_REF_NAME" "$release/VsMcp.vsix" "$release/VsMcp.Bridge.Setup.exe" "$release/SHA256SUMS.txt" --verify-tag --title "$env:GITHUB_REF_NAME" --notes-file "$release/RELEASE-NOTES.md"
           }

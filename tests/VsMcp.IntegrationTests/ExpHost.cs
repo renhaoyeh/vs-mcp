@@ -245,7 +245,7 @@ internal static class ExpHost
     }
 
     /// <summary>
-    /// True when an extension folder holds the package's DLL, redirects and bridge files, so the install
+    /// True when an extension folder holds the package's DLL and redirects, so the install
     /// (which opens an installer window and takes half a minute) can be skipped. The running instance is verified later anyway.
     /// </summary>
     private static bool IsInstalled()
@@ -263,7 +263,7 @@ internal static class ExpHost
                     if (Sha256(File.ReadAllBytes(dll)) != Identity.DllSha256) return false;
                     using var archive = System.IO.Compression.ZipFile.OpenRead(Package);
                     return archive.Entries.Where(entry => entry.Name.Length != 0 &&
-                        (entry.FullName == "VsMcp.Redirects.pkgdef" || entry.FullName.StartsWith("Bridge/", StringComparison.Ordinal)))
+                        entry.FullName == "VsMcp.Redirects.pkgdef")
                         .All(entry =>
                         {
                             var installed = Path.Combine(Path.GetDirectoryName(dll)!, entry.FullName);

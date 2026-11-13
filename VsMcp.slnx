@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/VsMcp.Launcher/VsMcp.Launcher.vcxproj" />
     <Project Path="src/VsMcp.Bridge/VsMcp.Bridge.csproj" />
     <Project Path="src/VsMcp.Vsix/VsMcp.Vsix.csproj">
       <Deploy />

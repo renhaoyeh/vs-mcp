@@ -7,9 +7,10 @@
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="BridgeExecutable" Value="$(MSBuildProjectDirectory)\..\..\src\VsMcp.Bridge\bin\$(Configuration)\net10.0\win-x64\VsMcp.Bridge.exe" />
+    <AssemblyMetadata Include="BridgeSetup" Value="$(MSBuildProjectDirectory)\..\..\artifacts\bridge\VsMcp.Bridge.Setup.exe" />
+    <AssemblyMetadata Include="BridgeUpgradeSetup" Value="$(MSBuildProjectDirectory)\..\..\artifacts\bridge\test-upgrade\VsMcp.Bridge.Setup.exe" />
     <ProjectReference Include="../../src/VsMcp.Bridge/VsMcp.Bridge.csproj" />
     <Compile Include="../../src/VsMcp.Vsix/Mcp/*.cs" Link="Mcp/%(Filename)%(Extension)" />
-    <Compile Include="../../src/VsMcp.Vsix/Infrastructure/BridgeDeployment.cs" Link="Infrastructure/BridgeDeployment.cs" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

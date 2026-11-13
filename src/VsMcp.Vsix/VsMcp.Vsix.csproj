@@ -7,7 +7,7 @@
     <RootNamespace>VsMcp</RootNamespace>
     <AssemblyName>VsMcp</AssemblyName>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
 
     <!-- VSIX packaging for an SDK-style project: AutoSetup imports the VSSDK targets. -->
     <VSSDKBuildToolsAutoSetup>true</VSSDKBuildToolsAutoSetup>
@@ -28,7 +28,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../VsMcp.Bridge/VsMcp.Bridge.csproj" ReferenceOutputAssembly="false" Private="false" SkipGetTargetFrameworkProperties="true" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Management" />
     <PackageReference Include="Microsoft.VisualStudio.SDK" Version="17.14.40265" ExcludeAssets="runtime" />
@@ -66,13 +65,4 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="IncludeBridgeInVsix" BeforeTargets="GetVsixSourceItems" DependsOnTargets="ResolveProjectReferences">
-    <MSBuild Projects="../VsMcp.Bridge/VsMcp.Bridge.csproj" Targets="Publish" Properties="Configuration=$(Configuration)" />
-    <ItemGroup>
-      <Content Include="../VsMcp.Bridge/bin/$(Configuration)/net10.0/win-x64/publish/*" Exclude="../VsMcp.Bridge/bin/$(Configuration)/net10.0/win-x64/publish/*.pdb">
-        <VSIXSubPath>Bridge</VSIXSubPath>
-        <IncludeInVSIX>true</IncludeInVSIX>
-      </Content>
-    </ItemGroup>
-  </Target>
 </Project>

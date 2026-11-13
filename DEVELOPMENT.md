@@ -36,13 +36,27 @@ MSBuild src/VsMcp.Vsix/VsMcp.Vsix.csproj -restore -p:Configuration=Release
 
 The VSIX is written to `src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix`. Packaging requires Visual Studio MSBuild; `dotnet build` cannot create the VSIX container. Command-line builds do not install. F5 inside Visual Studio deploys Debug to the experimental hive. The native test fixtures target v145/x64.
 
-`src/VsMcp.Bridge` is a net10.0 stdio server using ModelContextProtocol.Core, published self-contained for win-x64. The VSIX publishes it without referencing its net10 assembly and packages the publish output, including the .NET runtime, under `Bridge/`. End users need Windows x64 and VS 2026; they do not need to install .NET 10 separately. Building still requires the .NET 10 SDK. On startup the extension deploys the bridge files to `%LOCALAPPDATA%\VsMcp\Bridge`; a shared process lease prevents updates while a deployed bridge is running. The SDK-generated `src/VsMcp.Bridge/tools.json` catalog is embedded for offline tool discovery. New bridge control tools are attributed methods; IDE tools preserve their original schemas and forward SDK request/result objects. Rebuild and release with a serviced SDK to update the bundled runtime; machine-wide .NET updates do not replace it. See [self-contained deployment](https://learn.microsoft.com/en-us/dotnet/core/deploying/).
+`src/VsMcp.Bridge` is a net10.0 stdio server using ModelContextProtocol.Core, published self-contained for win-x64. Since 0.6.0 the VSIX only installs the IDE extension. The independent per-user Bridge Setup installs the runtime, a native `/MT` launcher and immutable payloads under `%LOCALAPPDATA%\Programs\VsMcp`. Building Setup also requires the desktop C++ workload (v145) and Inno Setup 6.7+ (`ISCC_EXE` can select the compiler).
+
+```powershell
+./eng/Build-BridgeSetup.ps1 -IncludeUpgradeTestFixture
+```
+
+The release executable is `artifacts/bridge/VsMcp.Bridge.Setup.exe`. Build staging directories are fresh, payload SHA-256 manifests determine directory identities, and Setup verifies every installed file before atomically replacing `current.txt`. Existing payloads are never overwritten; a corrupt existing payload fails validation and preserves the previous selection. Old versions remain until uninstall. The launcher v1 contract reads a safe single directory name from `current.txt`, starts its Bridge with inherited binary stdio and propagates the child exit code. A Windows job closes the child if the launcher dies. It requires neither .NET nor a separately installed Visual C++ runtime. Deterministic linking keeps identical launcher builds from forcing an update; changed launchers require clients to close if Windows locks the executable. Setup never force-closes clients. Failed installations may leave inactive payload files but never select an unverified payload.
+
+After validation, run `./eng/Stage-Release.ps1` to collect the Release VSIX, Setup, SHA-256 checksums and version-specific release notes under `artifacts/release/<version>/`. Keep `docs/releases/<version>.md` current, especially migration instructions; the tag workflow uses it as the GitHub release body.
+
+Setup opens a generated `mcp-config.json`; it does not alter MCP client settings. Legacy 0.5.0 users must change their command once to the new launcher path and reconnect. The old `%LOCALAPPDATA%\VsMcp\Bridge` installation is preserved for clients not yet migrated. Installation tests use `/TestInstall=1 /DIR=<random temporary root>` to suppress Installed apps registration and Start menu changes; this flag is for isolated validation only.
+
+The SDK-generated `src/VsMcp.Bridge/tools.json` catalog is embedded for offline tool discovery. New bridge control tools are attributed methods; IDE tools preserve their original schemas and forward SDK request/result objects. Rebuild and release with a serviced SDK to update the bundled runtime; machine-wide .NET updates do not replace it. See [self-contained deployment](https://learn.microsoft.com/en-us/dotnet/core/deploying/).
 
 Each VS publishes an atomic per-process registration under `%LOCALAPPDATA%\VsMcp\instances`, containing PID, process start time, endpoint port and a unique instanceId. Discovery checks process lifetime and queries `get_vs_info` on the UI thread through MCP. A bridge binds only through `connect_vs_instance(pid, instanceId)` after verifying live identity and catalog compatibility. It prevents rebinding while calls are active and attaches the instanceId to HTTP requests; the IDE rejects mismatches before dispatch. Each subsequent tool call creates a fresh SDK HTTP connection to the pinned instance. Calls are never retried automatically, and transport failures after dispatch report an unknown outcome. A restarted process requires explicit rebinding. Default-port collisions choose a free port; an explicit `VS_MCP_PORT` remains strict.
 
-The `Release VSIX` GitHub Actions workflow builds the Release package, checks the embedded IDE tool catalog, runs unit and bridge tests and the protocol harness, and uploads a `VsMcp-vsix` artifact. Run it manually from Actions, or push a tag such as `v0.5.0` to publish the VSIX on GitHub Releases. The tag must match both the project version and VSIX manifest version; update those files before tagging a new version. Experimental-instance integration tests remain a local validation step.
+The `Release VSIX and Bridge` GitHub Actions workflow builds both packages, checks the embedded IDE tool catalog, runs unit, Bridge/installation tests and the protocol harness, and uploads a `VsMcp-release` artifact containing the VSIX and Setup. Run it manually from Actions, or push a tag such as `v0.6.0` to publish both assets on GitHub Releases. The tag must match the VSIX project, Bridge project and VSIX manifest versions. Experimental-instance integration tests remain a local validation step. Build/release artifacts are unsigned unless a signing step is supplied; validate distribution signing before public release.
 
 ## Validation
+
+The 0.6.0 packaging change was validated locally on 2026-11-13 with a Release VSIX build, Bridge Setup build, 85-tool catalog check, HTTP protocol harness, 28 unit tests, 10 existing Bridge tests and eight installation cases. Installation validation includes Unicode/space-containing paths, reinstall/upgrade with a live client, corruption rejection, child lifetime and uninstall after an upgrade. Seven targeted experimental-hive integration cases passed, including host binding-policy checks and a real Launcher/stdio connection switching between two owned VS instances. Validation used the private desktop and `VsMcpTests` hive; the normal IDE, legacy Bridge process and MCP client settings were preserved. The launcher imports only `KERNEL32.dll`; self-contained stdio tests confirm it loads `coreclr.dll` from the installed payload. This is local validation, not a claim that the GitHub release workflow or a machine with .NET entirely removed has been tested.
 
 The build settings tools expose ten typed preferences through the host's registered Unified Settings API and C++ DTE automation, with UI-thread access, idle checks, support reasons, preflight validation and previous/read-back snapshots. Project parallelism falls back to the actual DTE property `ConcurrentBuilds` when Unified Settings is unavailable. The stop-after-first-failure preference is discovered only from a unique boolean registration in the running host's Build and Run schema; absent/ambiguous registrations are unsupported, never written under a guessed key. Native VS approval can remain pending, and updates across providers are not transactional. Tests restore preferences in `finally`.
 
@@ -58,6 +72,16 @@ dotnet test tests/VsMcp.BridgeTests
 dotnet build tests/VsMcp.Harness
 & tests/VsMcp.Harness/bin/Debug/net472/VsMcp.Harness.exe
 ```
+
+Build Setup with `-IncludeUpgradeTestFixture` before running Bridge tests. Installation tests exercise real silent Setup in temporary directories, reinstall and a different selected payload while a stdio connection stays alive, a corrupt payload preserving the old pointer, and invalid launcher pointers. To test the VSIX with an independently installed Bridge on an isolated desktop/hive:
+
+```powershell
+./eng/Test-Integration.ps1 -RootSuffix VsMcpTests
+# Full suite:
+./eng/Test-Integration.ps1 -RootSuffix VsMcpTests -Filter 'FullyQualifiedName~VsMcp.IntegrationTests'
+```
+
+This wrapper installs Bridge into a random temporary directory without user app registration, sets `VS_MCP_TEST_BRIDGE_ROOT`, and removes only that directory afterwards. It never uses or upgrades the normal installed Bridge.
 
 Unit tests cover TRX parsing and failure details, bounded result selection, missing/malformed reports, DTD rejection, no-tests classification, interrupted waits, recovery of run identity, cancellation isolation and Windows argument quoting. The protocol harness uses production HTTP/SDK code with fake tools; it cannot validate VS assembly loading.
 

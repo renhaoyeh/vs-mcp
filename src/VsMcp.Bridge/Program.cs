@@ -15,7 +15,7 @@ internal static class Program
         foreach (var tool in catalog.Tools) tools.Add(new ForwardingTool(tool, connection));
         return new McpServerOptions
         {
-            ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = "0.5.0" },
+            ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = typeof(Program).Assembly.GetName().Version!.ToString(3) },
             ServerInstructions = "Use list_vs_instances, then connect_vs_instance with the chosen PID and instanceId before calling IDE tools. "
                 + "Confirm the returned solution and process identity. The binding is local to this MCP connection. "
                 + "A restarted VS requires selecting the new instance explicitly. Interrupted mutations are never retried; inspect their effects before issuing another request.",
@@ -33,8 +33,6 @@ internal static class Program
         }
         try
         {
-            var lockPath = Path.Combine(AppContext.BaseDirectory, ".bridge.lock");
-            using var deploymentLock = File.Exists(lockPath) ? File.Open(lockPath, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite) : null;
             var catalog = ToolCatalog.Load();
             var options = CreateOptions(new BridgeConnection(new InstanceRegistry(), catalog), catalog);
             await using var server = McpServer.Create(new StdioServerTransport(options), options);

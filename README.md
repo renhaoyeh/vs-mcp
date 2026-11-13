@@ -2,11 +2,11 @@
 
 English | [繁體中文](README.zh-TW.md)
 
-Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. A bundled .NET stdio bridge provides a fixed client entry point and explicit selection between running VS instances.
+Give MCP agents access to Visual Studio 2026's C++ and C# development capabilities. The MCP server runs inside the connected IDE and exposes solutions, builds, unsaved documents, debugging, diagnostics, semantic navigation and test results over Streamable HTTP. A separately installed stdio bridge provides a fixed client entry point and explicit selection between running VS instances.
 
 ## Installation and connection
 
-Using VS MCP requires Windows x64 and Visual Studio 2026. The VSIX includes the bridge's .NET runtime; no separate .NET 10 installation is required.
+Using VS MCP requires Windows x64 and Visual Studio 2026. Install both `VsMcp.vsix` and `VsMcp.Bridge.Setup.exe` from the same release. Bridge Setup includes its .NET runtime; no separate .NET 10 installation or administrator permission is required.
 
 The extension uses the connected Visual Studio installation's shared .NET assemblies and binding policy, rather than requiring a fixed assembly patch version. The stdio bridge runs separately with its bundled runtime.
 
@@ -16,28 +16,32 @@ To have an agent download, install and configure VS MCP, paste this request:
 Please install VS MCP and configure it for my current MCP client on Windows.
 
 1. Find the installed Visual Studio 2026 instance. If several instances are available, ask which one to use.
-2. Download VsMcp.vsix from the latest stable release at https://github.com/renhaoyeh/vs-mcp/releases. If no release asset is available, report that instead of claiming installation succeeded.
-3. Use the selected Visual Studio installation's VSIXInstaller to install the VSIX. The bridge runtime is bundled; do not install .NET separately. If Visual Studio must be closed, ask me to save my work and close it before continuing.
-4. Start the selected Visual Studio instance and confirm that %LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe exists. Resolve this to the actual full path for my account.
+2. Download VsMcp.vsix and VsMcp.Bridge.Setup.exe from the same latest stable release at https://github.com/renhaoyeh/vs-mcp/releases. If either asset is unavailable, report that instead of claiming installation succeeded.
+3. Use the selected Visual Studio installation's VSIXInstaller to install the VSIX. If Visual Studio must be closed, ask me to save my work and close it before continuing. Run Bridge Setup for my account; it bundles .NET, so do not install .NET separately.
+4. Confirm that %LOCALAPPDATA%\Programs\VsMcp\VsMcp.Launcher.exe and mcp-config.json exist. Resolve the launcher to the actual full path for my account. Bridge installation does not require starting Visual Studio.
 5. Add a server named visual-studio to my current MCP client's configuration, using that full executable path and the client's supported configuration format. Preserve other existing settings. If the client needs to reload or restart, tell me what to do.
 6. Once the tools are available, call list_vs_instances, connect_vs_instance with the selected pid and instanceId, then get_vs_info to verify the intended Visual Studio instance. Report the installed version and actual verification result; if verification is blocked, explain the blocker.
 ```
 
-Download `VsMcp.vsix` from GitHub Releases. The `Release VSIX` GitHub Actions workflow also supports manual runs; download the `VsMcp-vsix` artifact from the completed run.
+Download `VsMcp.vsix` and `VsMcp.Bridge.Setup.exe` from GitHub Releases. The `Release VSIX and Bridge` GitHub Actions workflow also supports manual runs; download the `VsMcp-release` artifact from the completed run.
 
-Install the VSIX, then start VS once. The extension installs the self-contained bridge at `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe`. Configure your MCP client with the full executable path for your account:
+Install the VSIX and run Bridge Setup. Setup installs into `%LOCALAPPDATA%\Programs\VsMcp`, registers an uninstaller in Windows Installed apps, and opens `mcp-config.json` for copying into your client. It does not modify client settings. Configure your MCP client with the full launcher path for your account:
 
 ```json
 {
   "mcpServers": {
     "visual-studio": {
-      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\VsMcp\\Bridge\\VsMcp.Bridge.exe"
+      "command": "C:\\Users\\<USERNAME>\\AppData\\Local\\Programs\\VsMcp\\VsMcp.Launcher.exe"
     }
   }
 }
 ```
 
-Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying. Close bridge clients before installing an updated bridge, then restart VS.
+Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying.
+
+Setup places each complete Bridge build under `versions/`, verifies every file against its SHA-256 manifest, then atomically selects it in `current.txt`. Existing connections keep running their original version; restart the MCP connection after upgrading to use the new version. The launcher path stays unchanged. An update to the native launcher itself requires closing MCP connections if Windows reports it is in use. Close MCP clients before uninstalling; previous versions are retained until uninstall.
+
+**Upgrading from 0.5.0 or earlier:** install Bridge Setup, replace the old `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe` command with the launcher path above, then restart the MCP connection. The VSIX no longer copies Bridge files at startup. Setup leaves the legacy directory and running processes untouched; remove that old directory only after all clients have migrated and stopped using it. Verify `serverInfo.version` in the MCP initialization response as well as the VS extension version; an Installed badge alone does not verify a working connection.
 
 Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_PORT`, VS first tries port 18770 and chooses a free port on collision; the bridge discovers the assigned endpoint. Setting `VS_MCP_PORT` before starting VS fixes the port and disables fallback. The server listens only on loopback and validates Host/Origin; it currently has no authentication token. Bridge requests additionally identify the selected registration so a reused port cannot redirect a call to another instance.
 

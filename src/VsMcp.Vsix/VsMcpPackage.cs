@@ -72,15 +72,6 @@ namespace VsMcp
                         Pid = process.Id, ProcessStartTimeUtcTicks = process.StartTime.ToUniversalTime().Ticks,
                         Port = port, InstanceId = instanceId,
                     });
-                try
-                {
-                    BridgeDeployment.Install(Path.Combine(Path.GetDirectoryName(typeof(VsMcpPackage).Assembly.Location), "Bridge"),
-                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VsMcp", "Bridge"));
-                }
-                catch (Exception error)
-                {
-                    ActivityLog.LogError(nameof(VsMcpPackage), "Bridge deployment failed. Stop bridge clients and restart VS to update it: " + error.Message);
-                }
             }
             catch (Exception ex)
             {
