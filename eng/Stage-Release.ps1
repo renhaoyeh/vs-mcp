@@ -13,15 +13,19 @@ try {
 } finally { $archive.Dispose() }
 $release = Join-Path $projectRoot "artifacts/release/$version"
 New-Item -ItemType Directory -Force -Path $release | Out-Null
-foreach ($relative in 'src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix', 'artifacts/bridge/VsMcp.Bridge.Setup.exe') {
-    $source = Join-Path $projectRoot $relative
+$assets = @{
+    "VsMcp-$version.vsix" = 'src/VsMcp.Vsix/bin/Release/net472/VsMcp.vsix'
+    "VsMcp.Bridge.Setup-$version.exe" = 'artifacts/bridge/VsMcp.Bridge.Setup.exe'
+}
+foreach ($name in $assets.Keys) {
+    $source = Join-Path $projectRoot $assets[$name]
     if (-not (Test-Path -LiteralPath $source)) { throw "Missing release asset: $source" }
     if ((Get-Item -LiteralPath $source).Extension -eq '.exe' -and (Get-Item -LiteralPath $source).VersionInfo.ProductVersion.Trim() -ne $version) {
         throw 'Bridge Setup version does not match the release version.'
     }
-    Copy-Item -LiteralPath $source -Destination $release -Force
+    Copy-Item -LiteralPath $source -Destination (Join-Path $release $name) -Force
 }
-$checksums = foreach ($name in 'VsMcp.vsix', 'VsMcp.Bridge.Setup.exe') {
+$checksums = foreach ($name in ($assets.Keys | Sort-Object)) {
     '{0}  {1}' -f (Get-FileHash -LiteralPath (Join-Path $release $name)).Hash.ToLowerInvariant(), $name
 }
 [IO.File]::WriteAllLines((Join-Path $release 'SHA256SUMS.txt'), [string[]]$checksums, [Text.UTF8Encoding]::new($false))

@@ -85,7 +85,7 @@ jobs:
           $release = "artifacts/release/$version"
           gh release view "$env:GITHUB_REF_NAME" --json tagName *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload "$env:GITHUB_REF_NAME" "$release/VsMcp.vsix" "$release/VsMcp.Bridge.Setup.exe" "$release/SHA256SUMS.txt" --clobber
+            gh release upload "$env:GITHUB_REF_NAME" "$release/VsMcp-$version.vsix" "$release/VsMcp.Bridge.Setup-$version.exe" "$release/SHA256SUMS.txt" --clobber
           } else {
-            gh release create "$env:GITHUB_REF_NAME" "$release/VsMcp.vsix" "$release/VsMcp.Bridge.Setup.exe" "$release/SHA256SUMS.txt" --verify-tag --title "$env:GITHUB_REF_NAME" --notes-file "$release/RELEASE-NOTES.md"
+            gh release create "$env:GITHUB_REF_NAME" "$release/VsMcp-$version.vsix" "$release/VsMcp.Bridge.Setup-$version.exe" "$release/SHA256SUMS.txt" --verify-tag --title "$env:GITHUB_REF_NAME" --notes-file "$release/RELEASE-NOTES.md"
           }
