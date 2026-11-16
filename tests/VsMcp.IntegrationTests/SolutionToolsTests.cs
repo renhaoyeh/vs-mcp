@@ -8,6 +8,19 @@ public sealed class SolutionToolsTests(FixtureSession session)
 {
 
     [Fact]
+    public async Task Reports_native_dependency_edges_for_all_projects_including_leaves()
+    {
+        var projects = (await session.Client.Call<GetProjectDependenciesOutput>("get_project_dependencies")).Projects;
+        var b = Assert.Single(projects, p => p.Name == "B");
+        Assert.Equal(new[] { "A" }, b.DirectDependencies.Select(d => d.Name));
+        var c = Assert.Single(projects, p => p.Name == "C");
+        Assert.Equal(new[] { "B" }, c.DirectDependencies.Select(d => d.Name));
+        var a = Assert.Single(projects, p => p.Name == "A");
+        Assert.Empty(a.DirectDependencies);
+        Assert.Empty(a.AllDependencies);
+    }
+
+    [Fact]
     public async Task Reports_the_instance_and_its_solution()
     {
         var client = session.Client;

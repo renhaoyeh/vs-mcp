@@ -241,22 +241,32 @@ namespace VsMcp.Services.VisualStudio
         internal Dictionary<string, List<string>> ReadDirectDependencies()
         {
             ThreadHelper.ThrowIfNotOnUIThread();
+            var solution = (IVsSolution)Package.GetGlobalService(typeof(SVsSolution));
+            var manager = (IVsSolutionBuildManager2)Package.GetGlobalService(typeof(SVsSolutionBuildManager));
             var direct = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            foreach (BuildDependency dependency in _dte.Solution.SolutionBuild.BuildDependencies)
+            foreach (var project in EnumerateProjects())
             {
-                var required = new List<string>();
-                if (dependency.RequiredProjects is Array array)
-                {
-                    foreach (var item in array)
-                    {
-                        if (item is Project requiredProject) required.Add(requiredProject.UniqueName);
-                    }
-                }
-
-                direct[dependency.Project.UniqueName] = required;
+                direct[project.UniqueName] = ReadNativeDependencies(solution, manager, project.UniqueName);
             }
-
             return direct;
+        }
+
+        private static List<string> ReadNativeDependencies(IVsSolution solution, IVsSolutionBuildManager2 manager, string uniqueName)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            ErrorHandler.ThrowOnFailure(solution.GetProjectOfUniqueName(uniqueName, out var hierarchy));
+            var count = new uint[1];
+            ErrorHandler.ThrowOnFailure(manager.GetProjectDependencies(hierarchy, 0, null, count));
+            if (count[0] == 0) return new List<string>();
+            var dependencies = new IVsHierarchy[checked((int)count[0])];
+            ErrorHandler.ThrowOnFailure(manager.GetProjectDependencies(hierarchy, (uint)dependencies.Length, dependencies, count));
+            var required = new List<string>();
+            for (var i = 0; i < checked((int)count[0]); i++)
+            {
+                ErrorHandler.ThrowOnFailure(solution.GetUniqueNameOfProject(dependencies[i], out var name));
+                required.Add(name);
+            }
+            return required;
         }
 
         /// <summary>

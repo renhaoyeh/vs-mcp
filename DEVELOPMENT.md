@@ -24,6 +24,10 @@ DTE and native editor access enter the UI thread. Managed semantic work runs aga
 
 Existing solution/build/debug services retain their established instance/error contracts. Lightweight diagnostic and settings adapters directly call DTE on the UI thread. Build tools delegate orchestration to `BuildService`; build/debug event runners live under their service domains rather than in the MCP adapter folder.
 
+Build dependency queries use `IVsSolutionBuildManager2.GetProjectDependencies` for every project, resolving hierarchies and unique names through the connected IDE's `IVsSolution`. They do not call DTE's `BuildDependency.RequiredProjects`, which can throw `E_NOTIMPL` in a host solution shim. Query failures remain errors rather than silently omitting dependencies. The solution/build integration suite covers direct and transitive edges, leaf projects, dependency ordering and folder builds.
+
+On 2026-11-16 the native-only dependency path passed a Release VSIX build, the HTTP protocol harness, the 85-tool catalog check and all 24 targeted solution/build integration tests on VS Professional 18.6.11822.322 in the isolated `VsMcpTests` hive. The normal IDE has not been updated; installing the new VSIX and restarting it is still required to validate the production solution build.
+
 ## Build and package
 
 Requirements: Windows, Visual Studio 2026 with C#/.NET, desktop C++ and extension-development workloads; .NET 10 SDK and .NET Framework 4.7.2 targeting pack.
