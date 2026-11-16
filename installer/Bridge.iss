@@ -23,7 +23,9 @@ SolidCompression=yes
 WizardStyle=modern
 DisableProgramGroupPage=yes
 DisableDirPage=yes
-CloseApplications=no
+; Restart Manager only considers our launcher, never the MCP client or Visual Studio.
+CloseApplications=force
+CloseApplicationsFilter=VsMcp.Launcher.exe
 RestartApplications=no
 UninstallDisplayIcon={app}\VsMcp.Launcher.exe
 SetupLogging=yes

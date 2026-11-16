@@ -49,6 +49,41 @@ public sealed class InstallationTests
     }
 
     [Fact]
+    public async Task Setup_replaces_running_changed_launcher_without_stopping_other_installations()
+    {
+        using var install = new Installation();
+        using var other = new Installation();
+        await install.Setup();
+        await other.Setup();
+        // A PE overlay keeps this launcher executable while simulating an older binary.
+        var originalLauncher = File.ReadAllBytes(install.Launcher);
+        using (var overlay = new FileStream(install.Launcher, FileMode.Append)) overlay.WriteByte(0);
+        var start = new ProcessStartInfo(install.Launcher)
+        {
+            UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true,
+            RedirectStandardError = true, CreateNoWindow = true,
+        };
+        using var launcher = Process.Start(start)!;
+        await using var otherClient = await McpClient.CreateAsync(new StdioClientTransport(
+            new StdioClientTransportOptions { Command = other.Launcher }));
+        try
+        {
+            Assert.False(launcher.HasExited);
+            await install.Setup();
+            await launcher.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.Equal(originalLauncher, File.ReadAllBytes(install.Launcher));
+            Assert.Equal(87, (await otherClient.ListToolsAsync()).Count);
+            await using var next = await McpClient.CreateAsync(new StdioClientTransport(
+                new StdioClientTransportOptions { Command = install.Launcher }));
+            Assert.Equal(87, (await next.ListToolsAsync()).Count);
+        }
+        finally
+        {
+            if (!launcher.HasExited) { launcher.Kill(); await launcher.WaitForExitAsync(); }
+        }
+    }
+
+    [Fact]
     public async Task Terminating_launcher_closes_only_its_Bridge_child()
     {
         using var install = new Installation();

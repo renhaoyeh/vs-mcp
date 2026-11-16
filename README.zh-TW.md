@@ -41,7 +41,7 @@
 
 先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。
 
-Setup 將完整 Bridge 放入 `versions/` 下的獨立目錄，逐檔驗證 SHA-256 後才原子更新 `current.txt`。既有連線繼續使用原版本；升級後重新啟動 MCP 連線即可使用新版，入口路徑不變。若原生 Launcher 本身需要更新且 Windows 回報檔案使用中，必須先關閉 MCP 連線。舊版本保留到解除安裝；解除安裝前請先關閉 MCP 用戶端。
+Setup 將完整 Bridge 放入 `versions/` 下的獨立目錄，逐檔驗證 SHA-256 後才原子更新 `current.txt`。既有連線繼續使用原版本；升級後重新啟動 MCP 連線即可使用新版，入口路徑不變。若原生 Launcher 本身需要更新，Setup 會透過 Windows Restart Manager 在替換前關閉該安裝目錄的 Launcher 及其 Bridge 子程序。互動安裝會詢問是否關閉，靜默安裝則自動關閉；完成後請重新連接 MCP。Visual Studio 與 MCP 用戶端程式會保留。舊版本保留到解除安裝；解除安裝前請先關閉 MCP 用戶端。
 
 **從 0.5.0 或更早版本升級：**執行 Bridge Setup，將原本 `%LOCALAPPDATA%\VsMcp\Bridge\VsMcp.Bridge.exe` 的 command 改成上方 Launcher 路徑，再重新啟動 MCP 連線。新版 VSIX 不再於啟動時複製 Bridge。Setup 不會刪除舊目錄或終止舊程序；所有用戶端完成遷移並停止使用後，才可移除舊目錄。請同時確認 MCP 初始化回應的 `serverInfo.version` 與 VS 擴充版本；僅顯示「已安裝」不代表連線正常。
 
