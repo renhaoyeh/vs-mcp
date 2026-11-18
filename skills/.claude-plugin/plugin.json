@@ -1,0 +1,6 @@
+{
+  "name": "vs-mcp",
+  "version": "1.0.0",
+  "description": "Use VS MCP to work in a connected Visual Studio instance.",
+  "skills": "./"
+}

@@ -39,6 +39,9 @@ Source: "{#Launcher}"; DestDir: "{app}"; Flags: ignoreversion; Check: LauncherNe
 ; An immutable content-addressed payload never overwrites a running Bridge, even on reinstall.
 Source: "{#Payload}\*"; DestDir: "{app}\versions\{#BuildId}"; Flags: onlyifdoesntexist recursesubdirs createallsubdirs
 Source: "{#Manifest}"; Flags: dontcopy
+; Inno tracks the shipped files for uninstall and preserves other skills.
+Source: "..\skills\*"; DestDir: "{code:CodexSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\skills\*"; DestDir: "{code:ClaudeSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\MCP configuration"; Filename: "{sys}\notepad.exe"; Parameters: """{app}\mcp-config.json"""; Check: not IsTestInstall
@@ -75,6 +78,27 @@ function IsTestInstall: Boolean;
 begin
   { Isolated smoke tests must not change the user's installed-app registration. }
   Result := ExpandConstant('{param:TestInstall|0}') = '1';
+end;
+
+function SkillUserHome: String;
+begin
+  if IsTestInstall then begin
+    Result := ExpandConstant('{app}\test-user');
+    Exit;
+  end;
+  Result := GetEnv('USERPROFILE');
+  if (Result = '') or (ExtractFileDrive(Result) = '') then
+    RaiseException('Cannot locate the current user profile (USERPROFILE).');
+end;
+
+function CodexSkillsDir(Param: String): String;
+begin
+  Result := SkillUserHome + '\.agents\skills\vs-mcp';
+end;
+
+function ClaudeSkillsDir(Param: String): String;
+begin
+  Result := SkillUserHome + '\.claude\skills\vs-mcp';
 end;
 
 function MoveFileEx(ExistingFileName, NewFileName: String; Flags: Cardinal): Boolean;
@@ -128,5 +152,6 @@ end;
 procedure InitializeWizard;
 begin
   WizardForm.FinishedLabel.Caption :=
-    'VS MCP Bridge is installed. Copy the visual-studio entry from mcp-config.json into your MCP client, preserving its other settings. Restart the MCP connection to use the new version.';
+    'VS MCP Bridge and the Visual Studio skill for Codex and Claude Code are installed.' + #13#10#13#10 +
+    'Copy the visual-studio entry from mcp-config.json into your MCP client, preserving its other settings. Restart the MCP connection and start a new conversation to load the skill.';
 end;

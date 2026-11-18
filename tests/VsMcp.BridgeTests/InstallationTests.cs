@@ -157,12 +157,34 @@ public sealed class InstallationTests
     }
 
     [Fact]
-    public async Task Uninstall_removes_launcher_selection_and_version_payload()
+    public async Task Setup_refreshes_skills_and_uninstall_removes_only_shipped_files()
     {
         using var install = new Installation();
         await install.Setup();
+        var codexRoot = Path.Combine(install.Root, "test-user", ".agents", "skills", "vs-mcp");
+        var claudeRoot = Path.Combine(install.Root, "test-user", ".claude", "skills", "vs-mcp");
+        var codexSkill = Path.Combine(codexRoot, "visual-studio", "SKILL.md");
+        var claudeSkill = Path.Combine(claudeRoot, "visual-studio", "SKILL.md");
+        var claudeManifest = Path.Combine(claudeRoot, ".claude-plugin", "plugin.json");
+        var installedSkill = File.ReadAllText(codexSkill);
+        Assert.Contains("name: visual-studio", installedSkill);
+        Assert.Equal(installedSkill, File.ReadAllText(claudeSkill));
+        using (var plugin = JsonDocument.Parse(File.ReadAllText(claudeManifest)))
+        {
+            Assert.Equal("vs-mcp", plugin.RootElement.GetProperty("name").GetString());
+            Assert.Equal("./", plugin.RootElement.GetProperty("skills").GetString());
+        }
+        var userFile = Path.Combine(codexRoot, "user-file.md");
+        var siblingSkill = Path.Combine(Path.GetDirectoryName(claudeRoot)!, "example-skill", "SKILL.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(siblingSkill)!);
+        File.WriteAllText(userFile, "User notes");
+        File.WriteAllText(siblingSkill, "Unrelated skill");
+        File.WriteAllText(codexSkill, "Previous skill version");
+        File.WriteAllText(claudeSkill, "Previous skill version");
         var version = File.ReadAllText(install.Pointer).Trim();
         await install.Setup(upgrade: true);
+        Assert.Equal(installedSkill, File.ReadAllText(codexSkill));
+        Assert.Equal(installedSkill, File.ReadAllText(claudeSkill));
         var upgradedVersion = File.ReadAllText(install.Pointer).Trim();
         var start = new ProcessStartInfo(Path.Combine(install.Root, "unins000.exe")) { UseShellExecute = false, CreateNoWindow = true };
         foreach (var arg in new[] { "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" }) start.ArgumentList.Add(arg);
@@ -174,6 +196,11 @@ public sealed class InstallationTests
         Assert.False(File.Exists(install.Pointer));
         Assert.False(File.Exists(Path.Combine(install.Root, "versions", version, "VsMcp.Bridge.exe")));
         Assert.False(File.Exists(Path.Combine(install.Root, "versions", upgradedVersion, "VsMcp.Bridge.exe")));
+        Assert.False(File.Exists(codexSkill));
+        Assert.False(File.Exists(claudeSkill));
+        Assert.False(File.Exists(claudeManifest));
+        Assert.Equal("User notes", File.ReadAllText(userFile));
+        Assert.Equal("Unrelated skill", File.ReadAllText(siblingSkill));
     }
 
     private sealed class Installation : IDisposable
