@@ -40,8 +40,20 @@ Source: "{#Launcher}"; DestDir: "{app}"; Flags: ignoreversion; Check: LauncherNe
 Source: "{#Payload}\*"; DestDir: "{app}\versions\{#BuildId}"; Flags: onlyifdoesntexist recursesubdirs createallsubdirs
 Source: "{#Manifest}"; Flags: dontcopy
 ; Inno tracks the shipped files for uninstall and preserves other skills.
-Source: "..\skills\*"; DestDir: "{code:CodexSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\skills\*"; DestDir: "{code:ClaudeSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Claude Code reads only <skills>\<name>\SKILL.md, so SKILL.md sits directly in vs-mcp.
+Source: "..\skills\vs-mcp\*"; DestDir: "{code:CodexSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\skills\vs-mcp\*"; DestDir: "{code:ClaudeSkillsDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+; 0.6.3 and 0.6.4 nested the skill one level deeper, which Claude Code never loaded.
+Type: files; Name: "{code:CodexSkillsDir}\visual-studio\SKILL.md"
+Type: files; Name: "{code:CodexSkillsDir}\.claude-plugin\plugin.json"
+Type: dirifempty; Name: "{code:CodexSkillsDir}\visual-studio"
+Type: dirifempty; Name: "{code:CodexSkillsDir}\.claude-plugin"
+Type: files; Name: "{code:ClaudeSkillsDir}\visual-studio\SKILL.md"
+Type: files; Name: "{code:ClaudeSkillsDir}\.claude-plugin\plugin.json"
+Type: dirifempty; Name: "{code:ClaudeSkillsDir}\visual-studio"
+Type: dirifempty; Name: "{code:ClaudeSkillsDir}\.claude-plugin"
 
 [Icons]
 Name: "{group}\MCP configuration"; Filename: "{sys}\notepad.exe"; Parameters: """{app}\mcp-config.json"""; Check: not IsTestInstall
@@ -152,6 +164,6 @@ end;
 procedure InitializeWizard;
 begin
   WizardForm.FinishedLabel.Caption :=
-    'VS MCP Bridge and the Visual Studio skill for Codex and Claude Code are installed.' + #13#10#13#10 +
+    'VS MCP Bridge and the vs-mcp skill for Codex and Claude Code are installed.' + #13#10#13#10 +
     'Copy the visual-studio entry from mcp-config.json into your MCP client, preserving its other settings. Restart the MCP connection and start a new conversation to load the skill.';
 end;

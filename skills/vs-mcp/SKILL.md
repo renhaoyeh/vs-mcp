@@ -1,5 +1,5 @@
 ---
-name: visual-studio
+name: vs-mcp
 description: Use VS MCP to work in a running Visual Studio instance for solution management, C++ or C# builds, unsaved editor buffers, debugging, diagnostics, and tests. Use when the task calls for Visual Studio or depends on live IDE state.
 ---
 

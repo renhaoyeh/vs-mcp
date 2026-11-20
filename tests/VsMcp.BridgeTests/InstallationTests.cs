@@ -163,17 +163,16 @@ public sealed class InstallationTests
         await install.Setup();
         var codexRoot = Path.Combine(install.Root, "test-user", ".agents", "skills", "vs-mcp");
         var claudeRoot = Path.Combine(install.Root, "test-user", ".claude", "skills", "vs-mcp");
-        var codexSkill = Path.Combine(codexRoot, "visual-studio", "SKILL.md");
-        var claudeSkill = Path.Combine(claudeRoot, "visual-studio", "SKILL.md");
-        var claudeManifest = Path.Combine(claudeRoot, ".claude-plugin", "plugin.json");
+        // Claude Code reads only <skills>\<name>\SKILL.md, so neither client gets a nested layout.
+        var codexSkill = Path.Combine(codexRoot, "SKILL.md");
+        var claudeSkill = Path.Combine(claudeRoot, "SKILL.md");
         var installedSkill = File.ReadAllText(codexSkill);
-        Assert.Contains("name: visual-studio", installedSkill);
+        Assert.Contains("name: vs-mcp", installedSkill);
         Assert.Equal(installedSkill, File.ReadAllText(claudeSkill));
-        using (var plugin = JsonDocument.Parse(File.ReadAllText(claudeManifest)))
-        {
-            Assert.Equal("vs-mcp", plugin.RootElement.GetProperty("name").GetString());
-            Assert.Equal("./", plugin.RootElement.GetProperty("skills").GetString());
-        }
+        var legacy = new[] { codexRoot, claudeRoot }
+            .SelectMany(root => new[] { Path.Combine(root, "visual-studio", "SKILL.md"), Path.Combine(root, ".claude-plugin", "plugin.json") })
+            .ToArray();
+        Assert.All(legacy, path => Assert.False(File.Exists(path)));
         var userFile = Path.Combine(codexRoot, "user-file.md");
         var siblingSkill = Path.Combine(Path.GetDirectoryName(claudeRoot)!, "example-skill", "SKILL.md");
         Directory.CreateDirectory(Path.GetDirectoryName(siblingSkill)!);
@@ -181,10 +180,17 @@ public sealed class InstallationTests
         File.WriteAllText(siblingSkill, "Unrelated skill");
         File.WriteAllText(codexSkill, "Previous skill version");
         File.WriteAllText(claudeSkill, "Previous skill version");
+        // Simulate the nested 0.6.3/0.6.4 layout that Claude Code never loaded.
+        foreach (var path in legacy)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "Previous skill version");
+        }
         var version = File.ReadAllText(install.Pointer).Trim();
         await install.Setup(upgrade: true);
         Assert.Equal(installedSkill, File.ReadAllText(codexSkill));
         Assert.Equal(installedSkill, File.ReadAllText(claudeSkill));
+        Assert.All(legacy, path => Assert.False(Directory.Exists(Path.GetDirectoryName(path))));
         var upgradedVersion = File.ReadAllText(install.Pointer).Trim();
         var start = new ProcessStartInfo(Path.Combine(install.Root, "unins000.exe")) { UseShellExecute = false, CreateNoWindow = true };
         foreach (var arg in new[] { "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" }) start.ArgumentList.Add(arg);
@@ -198,7 +204,6 @@ public sealed class InstallationTests
         Assert.False(File.Exists(Path.Combine(install.Root, "versions", upgradedVersion, "VsMcp.Bridge.exe")));
         Assert.False(File.Exists(codexSkill));
         Assert.False(File.Exists(claudeSkill));
-        Assert.False(File.Exists(claudeManifest));
         Assert.Equal("User notes", File.ReadAllText(userFile));
         Assert.Equal("Unrelated skill", File.ReadAllText(siblingSkill));
     }

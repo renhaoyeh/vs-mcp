@@ -10,7 +10,7 @@
 
 使用 VS MCP 需要 Windows x64 與 Visual Studio 2026。請安裝同一版本的 `VsMcp-<version>.vsix` 與 `VsMcp.Bridge.Setup-<version>.exe`。Bridge Setup 包含所需的 .NET runtime，不必另外安裝 .NET 10，也不需要系統管理員權限。
 
-Bridge Setup 也會替目前帳號安裝 `visual-studio` skill。Codex 從 `%USERPROFILE%\.agents\skills\vs-mcp\` 探索 skill，Claude Code 可從 `%USERPROFILE%\.claude\skills\vs-mcp\` 載入 `vs-mcp` 外掛。安裝後請開啟新對話，並依下方說明另外設定 MCP 連線。升級時 Setup 會更新隨附的 skill，解除安裝時會移除它所安裝的檔案。
+Bridge Setup 也會替目前帳號安裝 `vs-mcp` skill，Codex 版位於 `%USERPROFILE%\.agents\skills\vs-mcp\SKILL.md`，Claude Code 版位於 `%USERPROFILE%\.claude\skills\vs-mcp\SKILL.md`。安裝後請開啟新對話，並依下方說明另外設定 MCP 連線。升級時 Setup 會更新隨附的 skill，解除安裝時會移除它所安裝的檔案。
 
 擴充套件使用連線之 Visual Studio 安裝所提供的共用 .NET 組件與繫結原則，不要求固定的組件修補版本。stdio 橋接程式則使用隨附的 runtime 獨立執行。
 

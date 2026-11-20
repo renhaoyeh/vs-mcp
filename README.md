@@ -10,7 +10,7 @@ Give MCP agents access to Visual Studio 2026's C++ and C# development capabiliti
 
 Using VS MCP requires Windows x64 and Visual Studio 2026. Install both `VsMcp-<version>.vsix` and `VsMcp.Bridge.Setup-<version>.exe` from the same release. Bridge Setup includes its .NET runtime; no separate .NET 10 installation or administrator permission is required.
 
-Bridge Setup also installs the `visual-studio` skill for the current user. Codex discovers it under `%USERPROFILE%\.agents\skills\vs-mcp\`, and Claude Code can load the `vs-mcp` plugin under `%USERPROFILE%\.claude\skills\vs-mcp\`. Start a new conversation after installation. Configure the MCP connection separately using the launcher below. Setup refreshes the shipped skill on upgrade and removes its files on uninstall.
+Bridge Setup also installs the `vs-mcp` skill for the current user, at `%USERPROFILE%\.agents\skills\vs-mcp\SKILL.md` for Codex and `%USERPROFILE%\.claude\skills\vs-mcp\SKILL.md` for Claude Code. Start a new conversation after installation. Configure the MCP connection separately using the launcher below. Setup refreshes the shipped skill on upgrade and removes its files on uninstall.
 
 The extension uses the connected Visual Studio installation's shared .NET assemblies and binding policy, rather than requiring a fixed assembly patch version. The stdio bridge runs separately with its bundled runtime.
 
