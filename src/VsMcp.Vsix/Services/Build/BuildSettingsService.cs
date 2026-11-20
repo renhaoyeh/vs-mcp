@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EnvDTE;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Settings;
 using Microsoft.VisualStudio.Utilities.UnifiedSettings;
 using Newtonsoft.Json.Linq;
 using VsMcp.Contracts;
@@ -23,6 +24,27 @@ namespace VsMcp.Services.Build
         private static readonly Guid SettingsService = new Guid("e3684f31-344e-42ea-9047-b620fdc7ac25");
         private readonly VsContext vs;
         public BuildSettingsService(VsContext vs) { this.vs = vs; }
+
+        public async Task InitializeDefaultsAsync(CancellationToken token)
+        {
+            await vs.JoinableTaskFactory.SwitchToMainThreadAsync(token);
+            const string collection = "VsMcp";
+            const string initialized = "StopSolutionBuildDefaultInitialized";
+            var store = new ShellSettingsManager(ServiceProvider.GlobalProvider)
+                .GetWritableSettingsStore(Microsoft.VisualStudio.Settings.SettingsScope.UserSettings);
+            if (store.PropertyExists(collection, initialized)) return;
+
+            var settings = await ReadOrUpdateAsync(null, token);
+            if (settings.StopSolutionBuildAfterFirstFailure is not bool enabled) return;
+            if (!enabled)
+            {
+                var updated = await ReadOrUpdateAsync(new BuildSettingsValues { StopSolutionBuildAfterFirstFailure = true }, token);
+                if (updated.UpdateStatus == BuildSettingsUpdateStatus.PendingApproval) return;
+            }
+
+            if (!store.CollectionExists(collection)) store.CreateCollection(collection);
+            store.SetBoolean(collection, initialized, true);
+        }
 
         private sealed class Binding
         {

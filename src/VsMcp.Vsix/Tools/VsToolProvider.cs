@@ -20,6 +20,7 @@ using VsMcp.Mcp;
 using System.IO;
 using VsMcp.Infrastructure;
 using VsMcp.Services.Documents;
+using VsMcp.Services.Build;
 using VsMcp.Services.Navigation;
 using VsMcp.Services.Testing;
 
@@ -44,6 +45,9 @@ namespace VsMcp.Tools
         }
 
         public IReadOnlyList<McpServerTool> Tools { get; }
+        internal Task InitializeDefaultsAsync(CancellationToken token) =>
+            new BuildSettingsService(context).InitializeDefaultsAsync(token);
+
         public void Dispose()
         {
             tests.Dispose();

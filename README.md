@@ -53,6 +53,8 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 `execute_code` runs arbitrary code with your permissions on the UI thread, without a sandbox, execution timeout or rollback. If a modifying operation is interrupted by a disconnect, inspect its effects before deciding whether to retry.
 
+On the first VS MCP load in a profile that supports the native stop-on-failure setting (VS 18.11+), the extension enables **Stop solution build after first failure**. You can turn it off in Visual Studio after initialization.
+
 ## Tools
 
 There are **85 IDE tools** and **3 bridge instance-management tools**. Start with a workflow category; each reference page lists the complete tool names, behavior and limitations.

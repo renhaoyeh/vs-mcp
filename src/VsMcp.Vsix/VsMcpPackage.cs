@@ -45,6 +45,15 @@ namespace VsMcp
             }
 
             var tools = _tools = new VsToolProvider(dte, JoinableTaskFactory);
+            try
+            {
+                await tools.InitializeDefaultsAsync(cancellationToken);
+            }
+            catch (Exception ex) when (!(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
+            {
+                ActivityLog.LogWarning(nameof(VsMcpPackage), "Could not initialize the build default: " + ex.Message);
+            }
+
             var configuredPort = Environment.GetEnvironmentVariable("VS_MCP_PORT");
             var explicitPort = !string.IsNullOrWhiteSpace(configuredPort);
             var port = McpHttpServer.DefaultPort;

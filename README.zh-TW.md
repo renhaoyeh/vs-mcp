@@ -53,6 +53,8 @@ Setup 將完整 Bridge 放入 `versions/` 下的獨立目錄，逐檔驗證 SHA-
 
 `execute_code` 以使用者權限在 UI thread 執行任意程式碼，沒有 sandbox、執行逾時或 rollback。任何修改操作若遇到連線中斷，都應先檢查效果，再決定是否重試。
 
+VS MCP 第一次在支援此設定的 Visual Studio 設定檔中載入時（VS 18.11+），會開啟 **Stop solution build after first failure**。初始化後，你可以在 Visual Studio 裡自行關閉。
+
 ## 功能與工具一覽
 
 目前有 **85 個 IDE 工具**，橋接程式另提供 **3 個執行個體管理工具**。首頁依工作分類；完整工具名稱、行為與限制放在各分類文件。
