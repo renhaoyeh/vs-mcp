@@ -21,16 +21,24 @@ internal sealed class TestDesktop : IDisposable
         if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot create the isolated test desktop. Tests will not fall back to the user's desktop.");
     }
 
-    public Process Start(ProcessStartInfo info)
+    public Process Start(ProcessStartInfo info, IntPtr stdin = default, IntPtr stdout = default, IntPtr stderr = default)
     {
         var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>(), Desktop = Name, Flags = 1, ShowWindow = 0 };
+        var redirect = stdin != IntPtr.Zero;
+        if (redirect)
+        {
+            startup.Flags |= 0x100; // STARTF_USESTDHANDLES
+            startup.StdInput = stdin;
+            startup.StdOutput = stdout;
+            startup.StdError = stderr;
+        }
         var environment = Marshal.StringToHGlobalUni(string.Join("\0", info.Environment.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
             .Select(pair => pair.Key + "=" + pair.Value)) + "\0");
         try
         {
             // Suspend until Process owns a handle, so even an immediately exiting installer has a reliable exit code.
             if (!CreateProcess(info.FileName, new StringBuilder("\"" + info.FileName + "\" " + info.Arguments), IntPtr.Zero, IntPtr.Zero,
-                false, CreateSuspended | CreateUnicodeEnvironment | CreateNoWindow, environment,
+                redirect, CreateSuspended | CreateUnicodeEnvironment | CreateNoWindow, environment,
                 string.IsNullOrEmpty(info.WorkingDirectory) ? null : info.WorkingDirectory, ref startup, out var created))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Cannot start on the isolated test desktop: " + info.FileName);
             Process? process = null;

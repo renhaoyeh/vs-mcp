@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Text.Json;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using VsMcp.Infrastructure;
 using Xunit;
 using Xunit.Sdk;
@@ -11,7 +13,7 @@ namespace VsMcp.IntegrationTests;
 public sealed class BridgeMultiInstanceTests
 {
     [Fact]
-    public async Task Stdio_bridge_discovers_and_controls_two_real_VS_instances_without_port_configuration()
+    public async Task Installed_bridge_launches_and_verifies_an_independent_VS_instance()
     {
         ExpHost.EnsurePrerequisites();
         ExpHost.EnsureExtensionInstalled();
@@ -23,9 +25,6 @@ public sealed class BridgeMultiInstanceTests
         {
             first = ExpHost.Launch(Path.Combine(firstFolder, "VsMcp.DebugTestSolution.sln"), automaticPort: true);
             var firstEntry = await WaitForRegistration(first);
-            second = ExpHost.Launch(Path.Combine(secondFolder, "VsMcp.DebugTestSolution.sln"), automaticPort: true);
-            var secondEntry = await WaitForRegistration(second);
-            Assert.NotEqual(firstEntry.Port, secondEntry.Port);
 
             // Setup smoke tests install into an isolated directory; never update a user's Bridge here.
             var bridgeRoot = Environment.GetEnvironmentVariable("VS_MCP_TEST_BRIDGE_ROOT")
@@ -44,8 +43,46 @@ public sealed class BridgeMultiInstanceTests
             Assert.True(runtimeConfig.RootElement.GetProperty("runtimeOptions").TryGetProperty("includedFrameworks", out _));
             Assert.Equal(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(builtBridge)),
                 System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(installedBridge)));
-            await using var bridge = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions { Command = executable }));
-            Assert.Equal(87, (await bridge.ListToolsAsync()).Count);
+            using var input = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.Inheritable);
+            using var output = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+            using var errors = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.Inheritable);
+            using var launcher = ExpHost.StartBridgeOnDesktop(executable, input.ClientSafePipeHandle.DangerousGetHandle(),
+                output.ClientSafePipeHandle.DangerousGetHandle(), errors.ClientSafePipeHandle.DangerousGetHandle());
+            input.DisposeLocalCopyOfClientHandle();
+            output.DisposeLocalCopyOfClientHandle();
+            errors.DisposeLocalCopyOfClientHandle();
+            using var errorReader = new StreamReader(errors);
+            var diagnostics = errorReader.ReadToEndAsync();
+            await using var bridge = await McpClient.CreateAsync(new StreamClientTransport(input, output));
+            Assert.Equal(88, (await bridge.ListToolsAsync()).Count);
+            await Bind(bridge, firstEntry);
+            var solutionPath = Path.Combine(secondFolder, "Debug Test Solution.sln");
+            File.Move(Path.Combine(secondFolder, "VsMcp.DebugTestSolution.sln"), solutionPath);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(150));
+            var launch = await bridge.CallToolAsync("launch_vs_instance", new Dictionary<string, object?>
+            {
+                ["solutionPath"] = solutionPath,
+                ["devenvPath"] = first.MainModule!.FileName,
+                ["rootSuffix"] = ExpHost.RootSuffix,
+            }, cancellationToken: timeout.Token);
+            var details = launch.StructuredContent;
+            if (details is { } content && content.TryGetProperty("pid", out var id) && id.GetInt32() != first.Id
+                && !(launch.IsError == true && content.GetProperty("error").GetString() == "VS_LAUNCH_EXITED"))
+                second = Process.GetProcessById(id.GetInt32());
+            Assert.False(launch.IsError == true, ToolCalls.TextOf(launch));
+            Assert.NotNull(second);
+            var secondEntry = await WaitForRegistration(second);
+            Assert.Equal(secondEntry.InstanceId, details!.Value.GetProperty("instanceId").GetString());
+            Assert.Equal(solutionPath, details.Value.GetProperty("instance").GetProperty("solutionPath").GetString());
+            Assert.False(details.Value.GetProperty("reused").GetBoolean());
+            Assert.NotEqual(firstEntry.Port, secondEntry.Port);
+
+            var reused = await bridge.Call<JsonElement>("launch_vs_instance", new { solutionPath });
+            Assert.True(reused.GetProperty("reused").GetBoolean());
+            Assert.Equal(second.Id, reused.GetProperty("pid").GetInt32());
+            Assert.Equal(secondEntry.InstanceId, reused.GetProperty("instanceId").GetString());
+            Assert.Equal(first.Id, (await bridge.Call<InstanceInfo>("get_vs_info")).Pid);
+
             var discovered = await bridge.Call<JsonElement>("list_vs_instances");
             var pids = discovered.GetProperty("instances").EnumerateArray().Select(instance => instance.GetProperty("pid").GetInt32()).ToArray();
             Assert.Contains(first.Id, pids);
@@ -64,14 +101,20 @@ public sealed class BridgeMultiInstanceTests
             await Bind(bridge, firstEntry);
             Assert.True((await bridge.Call<InstanceInfo>("get_vs_info")).SolutionOpen);
 
-            await Bind(bridge, secondEntry);
-            Stop(second);
+            Stop(first);
             var unavailable = await bridge.CallToolAsync("get_vs_info");
             Assert.True(unavailable.IsError);
             Assert.Equal("VS_INSTANCE_UNAVAILABLE", unavailable.StructuredContent!.Value.GetProperty("error").GetString());
-            Assert.Equal(87, (await bridge.ListToolsAsync()).Count); // The external MCP survives a closed VS.
-            await Bind(bridge, firstEntry);
-            Assert.Equal(first.Id, (await bridge.Call<InstanceInfo>("get_vs_info")).Pid);
+            Assert.Equal(88, (await bridge.ListToolsAsync()).Count);
+            await Bind(bridge, secondEntry);
+            Assert.Equal(second.Id, (await bridge.Call<InstanceInfo>("get_vs_info")).Pid);
+
+            // Closing the launcher's cleanup job must leave the IDE and its endpoint alive.
+            launcher.Kill();
+            await launcher.WaitForExitAsync(timeout.Token);
+            await diagnostics.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(second.HasExited);
+            await WaitForRegistration(second);
         }
         finally
         {

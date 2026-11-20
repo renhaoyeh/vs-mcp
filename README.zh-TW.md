@@ -41,7 +41,9 @@ Bridge Setup 也會替目前帳號安裝 `visual-studio` skill。Codex 從 `%USE
 }
 ```
 
-先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS；橋接不會啟動 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。
+先呼叫 `list_vs_instances`，再用選定的 `pid`、`instanceId` 呼叫 `connect_vs_instance`。橋接程式從 `%LOCALAPPDATA%\VsMcp\instances` 讀取登記資料，核對程序並查詢即時身分資訊。VS 未開啟時橋接仍可使用，但 IDE 操作需要綁定執行中的 VS。關閉並重啟 VS 後，必須明確選擇新的執行個體。連線失敗不會自動重送工具呼叫；後續呼叫會重新連接同一個綁定目標。若回傳 `outcomeUnknown`，應先檢查操作效果再決定是否重試。
+
+呼叫 `launch_vs_instance` 時，以 `solutionPath` 提供已存在的 `.sln` 或 `.slnx` 絕對路徑。工具會優先回傳已開啟同一方案的 VS，找不到時才啟動獨立行程。若同一方案已開啟且明確需要另一個行程，請傳入 `forceNew: true`。若需啟動且有多套 Visual Studio 2026，請以 `devenvPath` 指定選定的安裝。使用回傳的 `pid` 和 `instanceId` 呼叫 `connect_vs_instance` 即可操作指定的 VS。
 
 Setup 將完整 Bridge 放入 `versions/` 下的獨立目錄，逐檔驗證 SHA-256 後才原子更新 `current.txt`。既有連線繼續使用原版本；升級後重新啟動 MCP 連線即可使用新版，入口路徑不變。若原生 Launcher 本身需要更新，Setup 會透過 Windows Restart Manager 在替換前關閉該安裝目錄的 Launcher 及其 Bridge 子程序。互動安裝會詢問是否關閉，靜默安裝則自動關閉；完成後請重新連接 MCP。Visual Studio 與 MCP 用戶端程式會保留。舊版本保留到解除安裝；解除安裝前請先關閉 MCP 用戶端。
 
@@ -53,7 +55,7 @@ Setup 將完整 Bridge 放入 `versions/` 下的獨立目錄，逐檔驗證 SHA-
 
 ## 功能與工具一覽
 
-目前有 **85 個 IDE 工具**，橋接程式另提供 **2 個執行個體管理工具**。首頁依工作分類；完整工具名稱、行為與限制放在各分類文件。
+目前有 **85 個 IDE 工具**，橋接程式另提供 **3 個執行個體管理工具**。首頁依工作分類；完整工具名稱、行為與限制放在各分類文件。
 
 | 工作分類 | 能力摘要 |
 | --- | --- |

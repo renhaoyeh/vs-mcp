@@ -41,7 +41,9 @@ Install the VSIX and run Bridge Setup. Setup installs into `%LOCALAPPDATA%\Progr
 }
 ```
 
-Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. It does not launch VS. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying.
+Call `list_vs_instances`, then `connect_vs_instance` with the selected `pid` and `instanceId`. The bridge reads registrations from `%LOCALAPPDATA%\VsMcp\instances`, verifies the process and queries live identity. It stays available with no VS open, but IDE operations require a bound, running instance. Closing and restarting VS requires selecting its new instance explicitly. A connection failure never causes an automatic retry of a tool call; later calls establish fresh connections to the same bound instance. If a call reports `outcomeUnknown`, inspect its effects before retrying.
+
+Call `launch_vs_instance` with the authorized absolute `solutionPath` to an existing `.sln` or `.slnx`. It reuses a single matching running VS or starts a new process when the solution is absent. Use `forceNew: true` only to explicitly open another process for a solution that is already open. When multiple Visual Studio 2026 installations are available for a new launch, supply the chosen `devenvPath`. Connect using the returned `pid` and `instanceId`.
 
 Setup places each complete Bridge build under `versions/`, verifies every file against its SHA-256 manifest, then atomically selects it in `current.txt`. Existing connections keep running their original version; restart the MCP connection after upgrading to use the new version. The launcher path stays unchanged. When the native launcher itself changes, Setup uses Windows Restart Manager to close the launchers using that installation and their Bridge children before replacement. Interactive Setup asks to close them; silent Setup closes them automatically. Reconnect MCP afterwards. Visual Studio and MCP client applications stay open. Close MCP clients before uninstalling; previous versions are retained until uninstall.
 
@@ -53,7 +55,7 @@ Direct HTTP clients can still use `http://127.0.0.1:18770/mcp`. Without `VS_MCP_
 
 ## Tools
 
-There are **85 IDE tools**, plus **2 bridge instance-management tools**. Start with a workflow category; each reference page lists the complete tool names, behavior and limitations.
+There are **85 IDE tools** and **3 bridge instance-management tools**. Start with a workflow category; each reference page lists the complete tool names, behavior and limitations.
 
 | Workflow | Capabilities |
 | --- | --- |

@@ -32,20 +32,20 @@ public sealed class InstallationTests
             StandardErrorLines = trace.Enqueue,
         }));
         Assert.Equal(expectedVersion, client.ServerInfo?.Version);
-        Assert.Equal(87, (await client.ListToolsAsync()).Count);
+        Assert.Equal(88, (await client.ListToolsAsync()).Count);
         Assert.Contains(trace, line => line.Contains(Path.Combine(install.Root, "versions", selected.Trim(), "coreclr.dll"), StringComparison.OrdinalIgnoreCase));
         await install.Setup();
         Assert.Equal(selected, File.ReadAllText(install.Pointer));
-        Assert.Equal(87, (await client.ListToolsAsync()).Count);
+        Assert.Equal(88, (await client.ListToolsAsync()).Count);
         // A separately compiled fixture selects a different immutable directory with the same valid payload.
         var original = Path.Combine(install.Root, "versions", selected.Trim(), "VsMcp.Bridge.exe");
         var originalHash = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(original));
         await install.Setup(upgrade: true);
         Assert.NotEqual(selected, File.ReadAllText(install.Pointer));
         Assert.Equal(originalHash, System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(original)));
-        Assert.Equal(87, (await client.ListToolsAsync()).Count); // Existing connection is still usable.
+        Assert.Equal(88, (await client.ListToolsAsync()).Count); // Existing connection is still usable.
         await using var next = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions { Command = install.Launcher }));
-        Assert.Equal(87, (await next.ListToolsAsync()).Count);
+        Assert.Equal(88, (await next.ListToolsAsync()).Count);
     }
 
     [Fact]
@@ -72,10 +72,10 @@ public sealed class InstallationTests
             await install.Setup();
             await launcher.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
             Assert.Equal(originalLauncher, File.ReadAllBytes(install.Launcher));
-            Assert.Equal(87, (await otherClient.ListToolsAsync()).Count);
+            Assert.Equal(88, (await otherClient.ListToolsAsync()).Count);
             await using var next = await McpClient.CreateAsync(new StdioClientTransport(
                 new StdioClientTransportOptions { Command = install.Launcher }));
-            Assert.Equal(87, (await next.ListToolsAsync()).Count);
+            Assert.Equal(88, (await next.ListToolsAsync()).Count);
         }
         finally
         {

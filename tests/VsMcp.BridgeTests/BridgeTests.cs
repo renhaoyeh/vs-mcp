@@ -38,7 +38,7 @@ public sealed class BridgeTests
         }));
         var tools = await client.ListToolsAsync();
         Assert.Contains(hostTrace, line => line.Contains(Path.Combine(Path.GetDirectoryName(executable)!, "coreclr.dll"), StringComparison.OrdinalIgnoreCase));
-        Assert.Equal(87, tools.Count);
+        Assert.Equal(88, tools.Count);
         Assert.True(tools.Single(t => t.Name == "get_build_settings").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.False(tools.Single(t => t.Name == "set_build_settings").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.True(tools.Single(t => t.Name == "debugger_list_modules").ProtocolTool.Annotations!.ReadOnlyHint);
@@ -55,6 +55,10 @@ public sealed class BridgeTests
         Assert.False(tools.Single(t => t.Name == "debugger_select_frame").ProtocolTool.Annotations!.ReadOnlyHint);
         Assert.Contains(tools, tool => tool.Name == "list_vs_instances");
         Assert.Contains(tools, tool => tool.Name == "connect_vs_instance");
+        Assert.False(tools.Single(t => t.Name == "launch_vs_instance").ProtocolTool.Annotations!.IdempotentHint);
+        var invalid = await client.CallToolAsync("launch_vs_instance", new Dictionary<string, object?> { ["solutionPath"] = "Sample.sln" });
+        Assert.True(invalid.IsError);
+        Assert.Contains(invalid.Content.OfType<TextContentBlock>(), block => block.Text.Contains("INVALID_SOLUTION_PATH"));
         var result = await client.CallToolAsync("get_vs_info");
         Assert.True(result.IsError);
         Assert.Equal("VS_NOT_CONNECTED", Error(result));
@@ -66,6 +70,25 @@ public sealed class BridgeTests
         using var environment = new TestEnvironment();
         var connection = new BridgeConnection(environment.Registry, ToolCatalog.Load());
         Assert.Empty((await connection.DiscoverAsync(default)).Instances);
+    }
+
+    [Fact]
+    public async Task Launch_returns_all_running_matches_when_a_solution_is_open_in_multiple_instances()
+    {
+        using var environment = new TestEnvironment();
+        using var first = environment.Start(111);
+        using var second = environment.Start(112);
+        var path = Path.Combine(environment.Directory, "Sample.sln");
+        File.WriteAllText(path, "");
+        first.Tools.SolutionPath = second.Tools.SolutionPath = path;
+        var connection = new BridgeConnection(environment.Registry, first.Catalog);
+
+        var result = await connection.LaunchAsync(path, null, null, false, default);
+
+        Assert.True(result.IsError);
+        Assert.Equal("VS_SOLUTION_ALREADY_OPEN", Error(result));
+        var matches = result.StructuredContent!.Value.GetProperty("matches").EnumerateArray();
+        Assert.Equal(new[] { 111, 112 }, matches.Select(match => match.GetProperty("pid").GetInt32()));
     }
 
     [Fact]
@@ -262,6 +285,7 @@ public sealed class BridgeTests
     private sealed class FakeTools : IMcpToolProvider
     {
         public int Pid { get; set; }
+        public string? SolutionPath { get; set; }
         public int Mutations { get; private set; }
         public Action? AfterMutation { get; set; }
         public TaskCompletionSource WaitStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -270,7 +294,7 @@ public sealed class BridgeTests
         public FakeTools(int pid) { Pid = pid; Tools = ToolJson.CreateTools(this); }
 
         [McpServerTool(Name = "get_vs_info", UseStructuredContent = true), Description("Identify the fake instance.")]
-        public InstanceInfo Info() => new() { Pid = Pid, Product = "Visual Studio", DteVersion = "18.0", SolutionOpen = true, SolutionPath = $"C:\\Projects\\Sample{Pid}.sln" };
+        public InstanceInfo Info() => new() { Pid = Pid, Product = "Visual Studio", DteVersion = "18.0", SolutionOpen = true, SolutionPath = SolutionPath ?? $"C:\\Projects\\Sample{Pid}.sln" };
 
         [McpServerTool(Name = "mutate", UseStructuredContent = true), Description("Record one mutation.")]
         public MutationResult Mutate() { Mutations++; AfterMutation?.Invoke(); return new MutationResult(Info(), Mutations); }

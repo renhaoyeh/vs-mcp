@@ -80,6 +80,13 @@ internal static class ExpHost
 
     private static string Ide(string file) => Path.Combine(VsRoot, "Common7", "IDE", file);
 
+    public static Process StartBridgeOnDesktop(string executable, IntPtr stdin, IntPtr stdout, IntPtr stderr)
+    {
+        var info = new ProcessStartInfo(executable);
+        info.Environment.Remove("VS_MCP_PORT");
+        return Desktop.Value.Start(info, stdin, stdout, stderr);
+    }
+
     /// <summary>
     /// Runs installer/configuration helpers on the isolated desktop and waits without capturing output.
     /// </summary>

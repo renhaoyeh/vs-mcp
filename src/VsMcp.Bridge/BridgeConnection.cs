@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
@@ -14,9 +15,96 @@ internal sealed class BridgeConnection(InstanceRegistry registry, ToolCatalog ca
         TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
     };
     private readonly object sync = new();
+    private readonly SemaphoreSlim launchGate = new(1, 1);
     private InstanceRegistration? bound;
     private bool binding;
     private int activeCalls;
+
+    public async Task<CallToolResult> LaunchAsync(string solutionPath, string? devenvPath, string? rootSuffix, bool forceNew, CancellationToken cancellationToken)
+    {
+        solutionPath = VisualStudioLaunch.ValidateSolutionPath(solutionPath);
+        if (rootSuffix != null && (rootSuffix.Length is < 1 or > 32 || !rootSuffix.All(char.IsAsciiLetterOrDigit)))
+            throw new McpException("INVALID_ROOT_SUFFIX: Use an alphanumeric experimental hive suffix of 1 to 32 characters.");
+        if (devenvPath != null && (!Path.IsPathFullyQualified(devenvPath) || !File.Exists(devenvPath)))
+            throw new McpException("INVALID_DEVENV_PATH: Provide an absolute path to an installed Visual Studio 2026 devenv.exe.");
+
+        await launchGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!forceNew)
+            {
+                var discovery = await DiscoverAsync(cancellationToken);
+                var matches = discovery.Instances.Where(item => item.Instance is { } info && HasSolution(info, solutionPath)).ToArray();
+                if (matches.Length == 1 && rootSuffix == null &&
+                    (devenvPath == null || string.Equals(matches[0].Instance!.ExecutablePath, Path.GetFullPath(devenvPath), StringComparison.OrdinalIgnoreCase)))
+                {
+                    var match = matches[0];
+                    return Result(new { match.Pid, match.InstanceId, match.Endpoint, match.Instance, reused = true });
+                }
+                if (matches.Length != 0)
+                    return Result(new
+                    {
+                        error = "VS_SOLUTION_ALREADY_OPEN", solutionPath, matches,
+                        message = "The solution is already open. Select an existing PID explicitly, or use forceNew if the user wants another process.",
+                    }, isError: true);
+            }
+            return await StartAndVerifyAsync(solutionPath, devenvPath, rootSuffix, cancellationToken);
+        }
+        finally { launchGate.Release(); }
+    }
+
+    private static bool HasSolution(InstanceInfo info, string solutionPath) =>
+        info.SolutionOpen && string.Equals(info.SolutionPath, solutionPath, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<CallToolResult> StartAndVerifyAsync(string solutionPath, string? devenvPath, string? rootSuffix, CancellationToken cancellationToken)
+    {
+        devenvPath = await VisualStudioLaunch.FindDevenvAsync(devenvPath, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var handle = VisualStudioLaunch.Start(devenvPath, solutionPath, rootSuffix, out var pid);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(120));
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            var startTime = process.StartTime.ToUniversalTime().Ticks;
+            while (!process.HasExited)
+            {
+                timeout.Token.ThrowIfCancellationRequested();
+                var entry = registry.ReadAll().FirstOrDefault(entry => entry.Pid == pid && entry.ProcessStartTimeUtcTicks == startTime);
+                if (entry != null)
+                {
+                    using var probe = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+                    probe.CancelAfter(TimeSpan.FromSeconds(3));
+                    try
+                    {
+                        await using var client = await OpenAsync(entry, probe.Token);
+                        var info = await ReadIdentityAsync(client, entry, probe.Token);
+                        if (HasSolution(info, solutionPath) && registry.IsCurrent(entry))
+                            return Result(new { pid, entry.InstanceId, endpoint = Endpoint(entry), instance = info, reused = false });
+                    }
+                    catch (Exception error) when (error is HttpRequestException or IOException or McpException or OperationCanceledException)
+                    {
+                        // Retry only the read-only probe. The process was started exactly once.
+                    }
+                }
+                await Task.Delay(TimeSpan.FromMilliseconds(500), timeout.Token);
+            }
+        }
+        catch (ArgumentException) { } // The new process exited before Process.GetProcessById.
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            return Result(new
+            {
+                error = "VS_LAUNCH_UNCONFIRMED", pid, solutionPath, devenvPath, rootSuffix, outcomeUnknown = true,
+                message = "Visual Studio was started, but the requested solution was not confirmed. Inspect this PID and list_vs_instances before retrying.",
+            }, isError: true);
+        }
+        return Result(new
+        {
+            error = "VS_LAUNCH_EXITED", pid, solutionPath, devenvPath, rootSuffix, outcomeUnknown = false,
+            message = "The new Visual Studio process exited before the requested solution was confirmed.",
+        }, isError: true);
+    }
 
     public async Task<DiscoveryResult> DiscoverAsync(CancellationToken cancellationToken)
     {
@@ -132,10 +220,13 @@ internal sealed class BridgeConnection(InstanceRegistry registry, ToolCatalog ca
 
     private static string Endpoint(InstanceRegistration entry) => $"http://127.0.0.1:{entry.Port}/mcp";
 
-    private static CallToolResult Failure(string error, string message, InstanceRegistration? entry, bool outcomeUnknown)
+    private static CallToolResult Failure(string error, string message, InstanceRegistration? entry, bool outcomeUnknown) =>
+        Result(new { error, message, instance = entry, outcomeUnknown }, isError: true);
+
+    private static CallToolResult Result<T>(T value, bool isError = false)
     {
-        var content = JsonSerializer.SerializeToElement(new { error, message, instance = entry, outcomeUnknown }, Json);
-        return new CallToolResult { IsError = true, StructuredContent = content, Content = [new TextContentBlock { Text = content.GetRawText() }] };
+        var content = JsonSerializer.SerializeToElement(value, Json);
+        return new CallToolResult { IsError = isError, StructuredContent = content, Content = [new TextContentBlock { Text = content.GetRawText() }] };
     }
 }
 

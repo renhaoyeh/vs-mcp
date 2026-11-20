@@ -2,11 +2,11 @@
 
 [繁體中文](README.zh-TW.md) · [VS MCP](../../README.md)
 
-The server exposes **85 IDE tools** and the bridge adds **2 instance-management tools**. Choose a category for complete names, behavior and limitations. Counts below include the two bridge tools under connection.
+The server exposes **85 IDE tools** and the bridge adds **3 instance-management tools**. Choose a category for complete names, behavior and limitations. Counts below include the three bridge tools under connection.
 
 | Category | Tools | Details |
 | --- | --- | --- |
-| [Connection and IDE control](connection.md) | 5 | Choose a VS instance, control its window, or run advanced C# automation. |
+| [Connection and IDE control](connection.md) | 6 | Start or select a VS instance, control its window, or run advanced C# automation. |
 | [Projects and builds](projects-build.md) | 22 | Manage solutions, configurations, build settings, C++ properties, outputs and project files. |
 | [Editing and navigation](editor-navigation.md) | 11 | Read unsaved buffers, apply verified edits and query semantic locations. |
 | [Debugger workflows](debugging.md) | 31 | Launch/attach, select processes and frames, inspect variables, set breakpoints and exception policies. |

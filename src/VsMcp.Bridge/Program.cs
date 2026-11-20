@@ -18,6 +18,8 @@ internal static class Program
             ServerInfo = new Implementation { Name = "vs-mcp-bridge", Title = "Visual Studio MCP Bridge", Version = typeof(Program).Assembly.GetName().Version!.ToString(3) },
             ServerInstructions = "Use list_vs_instances, then connect_vs_instance with the chosen PID and instanceId before calling IDE tools. "
                 + "Confirm the returned solution and process identity. The binding is local to this MCP connection. "
+                + "Use launch_vs_instance with the authorized absolute solution path to find or open the solution. Set forceNew only if the user explicitly wants a separate process even when it is already open. "
+                + "Connect using the returned PID and instanceId before doing IDE work. If installations or running matches are ambiguous, use the user's chosen target. "
                 + "A restarted VS requires selecting the new instance explicitly. Interrupted mutations are never retried; inspect their effects before issuing another request. "
                 + "Prefer VS MCP for builds. If a project appears missing, confirm get_vs_info and get_projects(recursive: true); use project_reload for an unloaded project already in the solution. "
                 + "It cannot add an absent project. Switching solutions or adding projects must stay within the user's authorized scope. "
